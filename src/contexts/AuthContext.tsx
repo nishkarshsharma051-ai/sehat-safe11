@@ -222,17 +222,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = async () => {
+        // Remove backend user info but keep the selected role to enforce immutability
         localStorage.removeItem('backend_user');
-        // Do NOT remove 'sehat_safe_selected_role' - user might want to log back in as same role?
-        // Actually, if they logout, they might want to switch accounts.
-        // But the requirement is "cannot be changed".
-        // Use logic: Role is tied to ACCOUNT. 
-        // If I logout, I can see Role Selection again presumably to log in as a *different* user?
-        // Or does "cannot be changed" mean the device is locked?
-        // Usually it means the ACCOUNT is locked.
-        // So clearing selection on logout is fine, because next login will enforce account role.
-        localStorage.removeItem('sehat_safe_selected_role');
-
+        // Do NOT remove 'sehat_safe_selected_role' so the chosen role persists across sessions
         await firebaseSignOut(auth);
         setUser(null);
     };

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import User from '../models/User';
 import Appointment from '../models/Appointment';
@@ -17,7 +18,14 @@ export const getPatients = async (req: Request, res: Response) => {
 // This is "My Patients"
 export const getDoctorPatients = async (req: Request, res: Response) => {
     try {
-        const { doctorId } = req.params;
+        let { doctorId } = req.params;
+
+        // Resolve doctorId if it's a firebaseUid
+        if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+            const dUser = await User.findOne({ firebaseUid: doctorId });
+            if (dUser) doctorId = (dUser._id as unknown as string).toString();
+            else return res.json([]); // Doctor profile not found
+        }
 
         // Find all appointments for this doctor
         const appointments = await Appointment.find({ doctorId });

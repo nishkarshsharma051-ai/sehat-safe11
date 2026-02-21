@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import User from "../models/User";
 import { createWorker } from "tesseract.js";
 import pdfParse from 'pdf-parse';
 import Prescription from "../models/Prescription";
@@ -193,13 +194,31 @@ export const getPrescriptions = async (req: Request, res: Response) => {
         let query = {};
 
         if (role === 'patient' && userId) {
-            query = { patientId: userId };
+            if (mongoose.Types.ObjectId.isValid(userId as string)) {
+                query = { patientId: userId };
+            } else {
+                const user = await User.findOne({ firebaseUid: userId });
+                if (user) query = { patientId: user._id };
+                else return res.json([]);
+            }
         } else if (role === 'doctor' && userId) {
-            query = { doctorId: userId };
+            if (mongoose.Types.ObjectId.isValid(userId as string)) {
+                query = { doctorId: userId };
+            } else {
+                const user = await User.findOne({ firebaseUid: userId });
+                if (user) query = { doctorId: user._id };
+                else return res.json([]);
+            }
         }
 
         if (req.query.patientId) {
-            query = { ...query, patientId: req.query.patientId };
+            const pId = req.query.patientId as string;
+            if (mongoose.Types.ObjectId.isValid(pId)) {
+                query = { ...query, patientId: pId };
+            } else {
+                const user = await User.findOne({ firebaseUid: pId });
+                if (user) query = { ...query, patientId: user._id };
+            }
         }
 
         const prescriptions = await Prescription.find(query)

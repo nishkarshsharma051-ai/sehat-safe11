@@ -9,7 +9,7 @@ export const chatWithAI = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        const response = await geminiService.generateHealthResponse(message, history, userContext);
+        const response = await geminiService.generateHealthResponse(message, userContext);
 
         res.json({ response });
 

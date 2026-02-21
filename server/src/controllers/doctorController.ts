@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import Doctor from '../models/Doctor';
 import User from '../models/User';
@@ -26,12 +27,26 @@ export const getDoctors = async (req: Request, res: Response) => {
 
 export const getDoctorById = async (req: Request, res: Response) => {
     try {
-        const doctor = await Doctor.findById(req.params.id).populate('userId', 'name email');
+        let { id } = req.params;
+
+        // Resolve doctor by either ObjectId or Firebase UID (userId)
+        let doctor;
+        if (mongoose.Types.ObjectId.isValid(id)) {
+            doctor = await Doctor.findById(id).populate('userId', 'name email');
+        } else {
+            // Find user first
+            const user = await User.findOne({ firebaseUid: id });
+            if (user) {
+                doctor = await Doctor.findOne({ userId: user._id }).populate('userId', 'name email');
+            }
+        }
+
         if (!doctor) {
             return res.status(404).json({ error: 'Doctor not found' });
         }
         res.json(doctor);
-    } catch {
+    } catch (error) {
+        console.error('Error fetching doctor:', error);
         res.status(500).json({ error: 'Failed to fetch doctor' });
     }
 };

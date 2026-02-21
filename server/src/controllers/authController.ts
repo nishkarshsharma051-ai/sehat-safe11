@@ -48,8 +48,9 @@ export const register = async (req: Request, res: Response) => {
         });
 
     } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        const err = error as Error;
+        console.error('Registration error:', err.message, err.stack);
+        res.status(500).json({ error: 'Internal server error', detail: err.message });
     }
 };
 
@@ -64,8 +65,13 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Guard: if account was created via Google (no password stored), block password login
+        if (!user.password) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
         // Use bcrypt to compare the provided password with the hashed password in DB
-        const isMatch = await bcrypt.compare(password, user.password || '');
+        const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid credentials' });

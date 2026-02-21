@@ -8,6 +8,7 @@ export interface IUser extends Document {
     age?: number;
     gender?: string;
     contactNumber?: string;
+    firebaseUid?: string; // Optional Firebase UID for Google sign-in
     createdAt: Date;
     updatedAt: Date;
 }
@@ -23,7 +24,8 @@ const UserSchema: Schema = new Schema({
     },
     age: { type: Number },
     gender: { type: String },
-    contactNumber: { type: String }
+    contactNumber: { type: String },
+    firebaseUid: { type: String }
 }, {
     timestamps: true
 });

@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import { Request, Response } from 'express';
 import Appointment from '../models/Appointment';
+import User from '../models/User';
 
 export const getAppointments = async (req: Request, res: Response) => {
     try {
@@ -7,15 +9,34 @@ export const getAppointments = async (req: Request, res: Response) => {
         let query = {};
 
         if (role === 'patient' && userId) {
-            query = { patientId: userId };
+            // Check if userId is a valid ObjectId, if not, it's likely a Firebase UID
+            if (mongoose.Types.ObjectId.isValid(userId as string)) {
+                query = { patientId: userId };
+            } else {
+                // Find user by firebaseUid
+                const user = await User.findOne({ firebaseUid: userId });
+                if (user) {
+                    query = { patientId: user._id };
+                } else {
+                    return res.json({ appointments: [] }); // User not found in DB yet
+                }
+            }
         } else if (role === 'doctor' && userId) {
-            // Since Appointment now references User for doctorId, we can query directly
-            query = { doctorId: userId };
+            if (mongoose.Types.ObjectId.isValid(userId as string)) {
+                query = { doctorId: userId };
+            } else {
+                const user = await User.findOne({ firebaseUid: userId });
+                if (user) {
+                    query = { doctorId: user._id };
+                } else {
+                    return res.json({ appointments: [] });
+                }
+            }
         }
 
         const appointments = await Appointment.find(query)
             .populate('patientId', 'name')
-            .populate('doctorId') // Expand doctor details if needed
+            .populate('doctorId', 'name')
             .sort({ date: 1 });
 
         res.json({ appointments });
@@ -27,7 +48,21 @@ export const getAppointments = async (req: Request, res: Response) => {
 
 export const createAppointment = async (req: Request, res: Response) => {
     try {
-        const { patientId, doctorId, date, time, reason } = req.body;
+        let { patientId, doctorId, date, time, reason } = req.body;
+
+        // Resolve patientId if it's a firebaseUid
+        if (!mongoose.Types.ObjectId.isValid(patientId)) {
+            const pUser = await User.findOne({ firebaseUid: patientId });
+            if (pUser) patientId = pUser._id;
+            else return res.status(404).json({ error: 'Patient not found' });
+        }
+
+        // Resolve doctorId if it's a firebaseUid
+        if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+            const dUser = await User.findOne({ firebaseUid: doctorId });
+            if (dUser) doctorId = dUser._id;
+            else return res.status(404).json({ error: 'Doctor not found' });
+        }
 
         const appointment = await Appointment.create({
             patientId,
