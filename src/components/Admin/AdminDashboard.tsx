@@ -9,7 +9,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [_loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <Navbar currentView={currentView} onViewChange={setCurrentView} />
+      <Navbar />
 
       <div className="flex">
         <aside className="w-64 min-h-screen glass-sidebar p-6 hidden md:block">

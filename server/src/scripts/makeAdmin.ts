@@ -23,7 +23,6 @@ const makeAdmin = async () => {
             // Optionally, we could create the user here if we wanted to auto-provision
             // But for now, let's assume they signed up via Firebase/Frontend
             console.log('Creating admin user...');
-            const randomPassword = Math.random().toString(36).slice(-8);
             // We won't set a password hash for now as they will likely use Firebase/Google Auth
             // But if we validated password, we'd need it. 
             // Since verifyUser doesn't check password (just email), we can just create the record.

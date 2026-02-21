@@ -4,12 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Heart, LogOut, User, Sun, Moon, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface NavbarProps {
-  currentView: string;
-  onViewChange: (view: string) => void;
-}
-
-export default function Navbar({ currentView: _currentView, onViewChange: _onViewChange }: NavbarProps) {
+export default function Navbar() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);

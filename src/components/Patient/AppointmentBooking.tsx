@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Calendar, Clock, Search, Plus, MapPin } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Appointment, Doctor } from '../../types';
@@ -18,11 +18,7 @@ export default function AppointmentBooking() {
     reason: '',
   });
 
-  useEffect(() => {
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const appts = await appointmentService.getByPatient(user?.uid || 'anonymous');
       setAppointments(appts);
@@ -33,7 +29,11 @@ export default function AppointmentBooking() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const bookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();

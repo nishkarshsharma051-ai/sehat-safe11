@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Trash2, User, ArrowRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { FamilyMember } from '../../types';
@@ -11,13 +11,13 @@ export default function FamilyManagement() {
     const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
     const [form, setForm] = useState({ name: '', relationship: '', age: '' });
 
-    useEffect(() => {
-        loadMembers();
+    const loadMembers = useCallback(async () => {
+        setMembers(await familyService.getAll(user?.uid || 'anonymous'));
     }, [user]);
 
-    const loadMembers = async () => {
-        setMembers(await familyService.getAll(user?.uid || 'anonymous'));
-    };
+    useEffect(() => {
+        loadMembers();
+    }, [loadMembers]);
 
     const addMember = async () => {
         if (!form.name || !form.relationship) return;
@@ -41,11 +41,11 @@ export default function FamilyManagement() {
         await loadMembers();
     };
 
-    const getMemberStats = async (profileId: string) => ({
+    const getMemberStats = useCallback(async (profileId: string) => ({
         prescriptions: (await prescriptionService.getAll(profileId)).length,
-        appointments: (await appointmentService.getByPatient(profileId)).filter((a: any) => a.status !== 'cancelled').length,
-        reminders: (await reminderService.getAll(profileId)).filter((r: any) => r.is_active).length,
-    });
+        appointments: (await appointmentService.getByPatient(profileId)).filter((a: { status: string }) => a.status !== 'cancelled').length,
+        reminders: (await reminderService.getAll(profileId)).filter((r: { is_active: boolean }) => r.is_active).length,
+    }), []);
 
     const relationshipColors: Record<string, string> = {
         'Father': 'from-blue-500 to-indigo-500',
@@ -64,7 +64,7 @@ export default function FamilyManagement() {
             };
             load();
         }
-    }, [selectedMember]);
+    }, [selectedMember, getMemberStats]);
 
     const getColor = (rel: string) => relationshipColors[rel] || 'from-gray-500 to-gray-600';
 

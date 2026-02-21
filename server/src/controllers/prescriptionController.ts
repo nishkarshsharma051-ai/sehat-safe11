@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { createWorker } from "tesseract.js";
-const pdfParse = require('pdf-parse');
+import pdfParse from 'pdf-parse';
 import Prescription from "../models/Prescription";
-import User from '../models/User';
 import fs from 'fs';
 import path from 'path';
 import { preprocessImage } from "../utils/imageProcessor";
@@ -31,7 +30,7 @@ export const analyzePrescription = async (req: Request, res: Response) => {
         // 1. Image Preprocessing & OCR
         if (req.file.mimetype === 'application/pdf') {
             try {
-                const pdfData = await pdfParse(req.file.buffer);
+                const pdfData = await (pdfParse as unknown as (b: Buffer) => Promise<{ text: string }>)(req.file.buffer);
                 extractedText = pdfData.text;
                 console.log(`[OCR] PDF parsed in ${Date.now() - startTime}ms`);
             } catch (e) {
@@ -51,8 +50,8 @@ export const analyzePrescription = async (req: Request, res: Response) => {
 
                 // Set whitelist if possible, or PSM for better line reading
                 await worker.setParameters({
-                    tessedit_pageseg_mode: '1' as any, // Automatic page segmentation with OSD
-                });
+                    tessedit_pageseg_mode: '1', // Automatic page segmentation with OSD
+                } as Record<string, string>);
 
                 const ret = await worker.recognize(processedBuffer);
                 await worker.terminate();
@@ -67,13 +66,20 @@ export const analyzePrescription = async (req: Request, res: Response) => {
         // 2. Intelligent Parsing with Fuzzy Matching (Local "AI")
         const lines = extractedText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
-        const extractedMedicines: any[] = [];
+        interface ExtractedMedicine {
+            name: string;
+            dosage: string;
+            frequency: string;
+            duration: string;
+            originalLine: string;
+        }
+        const extractedMedicines: ExtractedMedicine[] = [];
         let doctorName = 'Unknown Doctor';
         let diagnosis = 'Review Required';
 
         // Patterns
         const doctorPattern = /(?:Dr\.|Doctor|Physician)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i;
-        const diagnosisPattern = /(?:Diagnosis|Dx|Impression)\s*[:\-\.]?\s*([^\n\r]+)/i;
+        const diagnosisPattern = /(?:Diagnosis|Dx|Impression)\s*[:\-. ]?\s*([^\n\r]+)/i;
 
         // Scan lines
         for (const line of lines) {
@@ -141,7 +147,7 @@ export const analyzePrescription = async (req: Request, res: Response) => {
                     medicines: extractedMedicines,
                     analysis: JSON.stringify(analysis)
                 });
-                prescriptionId = (prescription as any)._id;
+                prescriptionId = prescription._id;
             } catch (dbError) {
                 console.warn('[OCR] DB save failed:', dbError);
             }
@@ -155,9 +161,9 @@ export const analyzePrescription = async (req: Request, res: Response) => {
             success: true
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[OCR] Fatal Error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: (error as Error).message });
     }
 };
 

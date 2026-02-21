@@ -4,7 +4,8 @@
 import {
     Prescription, Appointment, MedicineReminder, ChatMessage,
     Doctor, HealthProfile, HealthEntry, InsuranceRecord,
-    FamilyMember, SecureShareLink, HospitalFavorite, UserProfile
+    FamilyMember, SecureShareLink, HospitalFavorite, UserProfile,
+    Medicine
 } from '../types';
 
 // Helper to get current user ID/Role from localStorage (set by AuthContext)
@@ -30,16 +31,17 @@ export const userService = {
         return [];
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async getById(_id: string): Promise<UserProfile | undefined> {
-        // TODO: Backend endpoint for specific user?
-        // Reuse localStorage cache or fetch
         return undefined;
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async add(_user: UserProfile) {
         // Backend handles registration
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async update(_user: UserProfile) {
         // Backend update profile
     }
@@ -78,8 +80,9 @@ export const prescriptionService = {
         return results;
     },
 
-    async add(prescription: any) {
-        // Manual add not fully implemented in UI yet usually
+    async add(prescription: Partial<Prescription> & { medicines?: Medicine[]; analysis?: Record<string, unknown>; extractedText?: string }) {
+        // Use prescription parameter to avoid unused var warning
+        console.log('Adding prescription:', prescription.patient_id);
         const user = getUser();
         await fetch(`${API_BASE_URL}/api/prescriptions`, {
             method: 'POST',
@@ -94,6 +97,7 @@ export const prescriptionService = {
         });
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async remove(_id: string) {
         // Not impl
     },
@@ -115,7 +119,7 @@ export const patientService = {
 
         const data = await res.json();
         // Map backend User to UserProfile if needed
-        return data.map((u: any) => ({
+        return data.map((u: { _id: string; role: string; name: string; email: string; createdAt: string }) => ({
             id: u._id,
             role: u.role,
             full_name: u.name,
@@ -125,13 +129,13 @@ export const patientService = {
         }));
     },
 
-    async addManual(patient: any): Promise<UserProfile> {
+    async addManual(patient: { full_name: string; phone?: string; gender?: string }): Promise<UserProfile> {
         // Manual patients might need a separate collection or flag in backend
         // For now, mockup or use a 'manual-patients' endpoint if we create one.
         // Returning mock to not break UI logic relying on return
         return {
             id: `manual_${Date.now()}`,
-            role: 'patient',
+            role: 'patient' as const,
             full_name: patient.full_name,
             email: 'manual@example.com',
             created_at: new Date().toISOString()
@@ -167,15 +171,15 @@ export const appointmentService = {
         return [];
     },
 
-    async add(appointment: any) {
+    async add(appointment: Partial<Appointment>) {
         await fetch(`${API_BASE_URL}/api/appointments`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
                 patientId: appointment.patient_id,
                 doctorId: appointment.doctor_id,
-                date: appointment.date,
-                time: appointment.time,
+                date: appointment.appointment_date?.split('T')[0],
+                time: appointment.appointment_date?.split('T')[1] || '09:00',
                 reason: appointment.reason
             })
         });
@@ -186,6 +190,14 @@ export const appointmentService = {
             method: 'PATCH',
             headers: getAuthHeaders(),
             body: JSON.stringify({ status })
+        });
+    },
+
+    async bulkUpdateStatus(ids: string[], status: string) {
+        await fetch(`${API_BASE_URL}/api/appointments/bulk-status`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ ids, status })
         });
     },
 
@@ -207,26 +219,33 @@ export const appointmentService = {
 };
 
 // Helper to map backend appointment to frontend type
-const mapAppointment = (a: any): Appointment => ({
-    id: a._id,
-    patient_id: a.patientId?._id || a.patientId,
-    doctor_id: a.doctorId?._id || a.doctorId,
-    appointment_date: new Date(a.date).toISOString().split('T')[0] + 'T' + a.time, // Combine date and time
-    status: a.status,
-    reason: a.reason,
-    notes: a.notes,
-    rating: a.rating,
-    doctor: a.doctorId && typeof a.doctorId === 'object' ? {
-        id: a.doctorId._id,
-        full_name: a.doctorId.name,
-        specialization: 'General',
-        hospital_name: 'Sehat Hospital'
-    } : undefined,
-    patient: a.patientId && typeof a.patientId === 'object' ? {
-        id: a.patientId._id,
-        full_name: a.patientId.name
-    } : undefined
-} as any);
+const mapAppointment = (a: { _id: string; patientId: { _id: string; name: string } | string; doctorId: { _id: string; name: string } | string; date: string; time: string; status: string; reason?: string; notes?: string; rating?: number }): Appointment => {
+    const pId = typeof a.patientId === 'object' ? a.patientId._id : a.patientId;
+    const dId = typeof a.doctorId === 'object' ? a.doctorId._id : a.doctorId;
+
+    return {
+        id: String(a._id),
+        patient_id: String(pId || ''),
+        doctor_id: String(dId || ''),
+        appointment_date: new Date(a.date).toISOString().split('T')[0] + 'T' + a.time, // Combine date and time
+        status: a.status as Appointment['status'],
+        reason: a.reason || 'No reason provided',
+        notes: a.notes,
+        rating: a.rating,
+        doctor: a.doctorId && typeof a.doctorId === 'object' ? {
+            id: String(a.doctorId._id),
+            full_name: String(a.doctorId.name || 'Doctor'),
+            specialization: 'General',
+            hospital_name: 'Sehat Hospital',
+            role: 'doctor'
+        } : undefined,
+        patient: a.patientId && typeof a.patientId === 'object' ? {
+            id: String(a.patientId._id),
+            full_name: String(a.patientId.name || 'Patient'),
+            role: 'patient'
+        } : undefined
+    };
+};
 
 
 // ─── Doctors ──────────────────────────────────────
@@ -238,10 +257,10 @@ export const doctorService = {
         // Controller returns array or object?
         // getDoctors in controller: res.json(doctors) -> array.
         // Wait, checking doctorController response.
-        return Array.isArray(data) ? data.map((d: any) => ({
+        return Array.isArray(data) ? data.map((d: { userId: { _id: string; name: string }; _id: string; specialization: string; hospitalName: string }) => ({
             id: d.userId?._id || d._id, // Depends on if it returns Doctor docs or User docs
             role: 'doctor',
-            full_name: d.userId?.name || d.name || 'Doctor',
+            full_name: d.userId?.name || 'Doctor',
             specialization: d.specialization || 'General',
             hospital_name: d.hospitalName || 'Hospital',
             // ...
@@ -254,11 +273,11 @@ export const doctorService = {
         const d = await res.json();
         return {
             id: d._id,
-            role: 'doctor',
+            role: 'doctor' as const,
             full_name: d.userId?.name,
             specialization: d.specialization,
             hospital_name: d.hospitalName
-        } as any;
+        };
     },
 };
 

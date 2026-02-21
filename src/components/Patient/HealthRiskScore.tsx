@@ -102,7 +102,7 @@ export default function HealthRiskScore() {
                                 <field.icon className="w-3 h-3" /><span>{field.label}</span>
                             </label>
                             <div className="relative mt-1">
-                                <input type="number" value={(form as any)[field.key]}
+                                <input type="number" value={(form as Record<string, string>)[field.key]}
                                     onChange={e => setForm({ ...form, [field.key]: e.target.value })}
                                     className="w-full px-3 py-2 rounded-lg glass-input text-sm"
                                     placeholder={field.placeholder} />

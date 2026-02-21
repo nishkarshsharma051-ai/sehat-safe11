@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 // Also update the local storage user list for RoleSelection if needed
                 const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
-                if (!users.find((u: any) => u.id === data.user.id)) {
+                if (!users.find((u: { id: string }) => u.id === data.user.id)) {
                     const profile = {
                         id: data.user.id,
                         role: data.user.role,
@@ -244,6 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
     if (context === undefined) {

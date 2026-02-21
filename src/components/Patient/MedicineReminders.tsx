@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Bell, Plus, Trash2, ToggleLeft, ToggleRight, Clock, Pill } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MedicineReminder } from '../../types';
@@ -18,11 +18,7 @@ export default function MedicineReminders() {
     reminder_times: ['09:00', '21:00'],
   });
 
-  useEffect(() => {
-    loadReminders();
-  }, [user]);
-
-  const loadReminders = async () => {
+  const loadReminders = useCallback(async () => {
     try {
       const data = await reminderService.getAll(user?.uid || 'anonymous');
       setReminders(data);
@@ -31,7 +27,11 @@ export default function MedicineReminders() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadReminders();
+  }, [loadReminders]);
 
   const addReminder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +65,7 @@ export default function MedicineReminders() {
     }
   };
 
-  const toggleReminder = async (id: string, _currentStatus: boolean) => {
+  const toggleReminder = async (id: string) => {
     try {
       await reminderService.toggle(id);
       setReminders((prev) =>
@@ -150,7 +150,7 @@ export default function MedicineReminders() {
                   </div>
                 </div>
                 <button
-                  onClick={() => toggleReminder(reminder.id, reminder.is_active)}
+                  onClick={() => toggleReminder(reminder.id)}
                   className="p-2 hover:bg-white/50 rounded-lg transition-all"
                 >
                   {reminder.is_active ? (

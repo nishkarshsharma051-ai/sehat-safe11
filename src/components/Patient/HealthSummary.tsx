@@ -126,13 +126,13 @@ export default function HealthSummary() {
                         <div key={field.key}>
                             <label className="text-sm text-gray-600 font-medium">{field.label}</label>
                             {editing ? (
-                                <input type={field.type} value={(form as any)[field.key]}
+                                <input type={field.type} value={(form as Record<string, string>)[field.key]}
                                     onChange={e => setForm({ ...form, [field.key]: e.target.value })}
                                     className="w-full mt-1 px-3 py-2 rounded-lg glass-input text-sm"
                                     placeholder={field.label} />
                             ) : (
                                 <p className="mt-1 text-gray-800 font-medium">
-                                    {(form as any)[field.key] || '—'} {(form as any)[field.key] && field.suffix}
+                                    {(form as Record<string, string>)[field.key] || '—'} {(form as Record<string, string>)[field.key] && field.suffix}
                                 </p>
                             )}
                         </div>

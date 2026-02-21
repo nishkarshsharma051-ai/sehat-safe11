@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { LucideIcon } from 'lucide-react';
 import {
   Calendar, Users, Clock, FileText, Stethoscope, ClipboardList, Search,
   LogOut, Sun, Moon, LayoutDashboard, MessageSquare, Bell, Settings, Sparkles, PlusCircle,
@@ -35,7 +36,7 @@ export default function DoctorDashboard() {
   const [activeTab, setActiveTab] = useState<'register' | 'book'>('register');
   const [manualPatient, setManualPatient] = useState({ full_name: '', age: '', gender: 'male', phone: '' });
   const [manualAppointment, setManualAppointment] = useState({ patient_id: '', date: '', time: '', reason: '' });
-  const [allPatients, setAllPatients] = useState<any[]>([]);
+  const [allPatients, setAllPatients] = useState<{ id: string; full_name: string; phone?: string }[]>([]);
 
   // Settings State
   const [profileData, setProfileData] = useState({
@@ -51,20 +52,30 @@ export default function DoctorDashboard() {
     push: false
   });
 
+  const loadPatients = useCallback(async () => {
+    const patients = await patientService.getAll();
+    setAllPatients(patients);
+  }, []);
+
+  const loadAppointments = useCallback(async () => {
+    try {
+      const data = await appointmentService.getAll();
+      setAppointments(data);
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+    }
+  }, []);
+
   useEffect(() => {
     loadAppointments();
     loadPatients();
-  }, [currentView]);
+  }, [loadAppointments, loadPatients, currentView]);
 
   // Close mobile menu when view changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [currentView]);
 
-  const loadPatients = async () => {
-    const patients = await patientService.getAll();
-    setAllPatients(patients);
-  };
 
   const generateDailyBriefing = async () => {
     setIsAiLoading(true);
@@ -105,7 +116,7 @@ export default function DoctorDashboard() {
       const newPatient = await patientService.addManual({
         full_name: manualPatient.full_name,
         phone: manualPatient.phone,
-        gender: manualPatient.gender as any,
+        gender: manualPatient.gender as 'male' | 'female' | 'other',
       });
 
       await loadPatients();
@@ -140,14 +151,6 @@ export default function DoctorDashboard() {
     }
   };
 
-  const loadAppointments = async () => {
-    try {
-      const data = await appointmentService.getAll();
-      setAppointments(data);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-    }
-  };
 
   const updateAppointmentStatus = async (id: string, status: string) => {
     try {
@@ -174,13 +177,13 @@ export default function DoctorDashboard() {
     }
   };
 
-  const NAV_ITEMS = [
+  const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'patients', label: 'My Patients', icon: Users },
     { id: 'records', label: 'Medical Records', icon: ClipboardList },
     { id: 'settings', label: 'Settings', icon: Settings },
-  ] as const;
+  ];
 
   const upcomingAppointments = appointments.filter(
     (apt) => apt.status === 'confirmed' || apt.status === 'pending'
@@ -201,6 +204,22 @@ export default function DoctorDashboard() {
       new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()
     )[0]?.appointment_date,
   }));
+
+  const confirmAllPending = async () => {
+    const pendingIds = appointments.filter(a => a.status === 'pending').map(a => a.id);
+    if (pendingIds.length === 0) return;
+
+    if (!confirm(`Are you sure you want to accept all ${pendingIds.length} pending appointments?`)) return;
+
+    try {
+      await appointmentService.bulkUpdateStatus(pendingIds, 'confirmed');
+      setAppointments(prev => prev.map(a => pendingIds.includes(a.id) ? { ...a, status: 'confirmed' } : a));
+      alert('All pending appointments have been confirmed.');
+    } catch (error) {
+      console.error('Error confirming all appointments:', error);
+      alert('Failed to confirm appointments.');
+    }
+  };
 
   const filteredPatients = uniquePatients.filter(p =>
     p.name.toLowerCase().includes(patientSearch.toLowerCase())
@@ -539,7 +558,14 @@ export default function DoctorDashboard() {
 
   const renderAppointments = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-white">All Appointments</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">All Appointments</h2>
+        {appointments.some(a => a.status === 'pending') && (
+          <PremiumButton onClick={confirmAllPending} variant="primary" size="sm" className="bg-green-500 hover:bg-green-600 border-none">
+            Accept All Pending
+          </PremiumButton>
+        )}
+      </div>
 
       {appointments.length === 0 ? (
         <GlassCard className="p-12 text-center">
@@ -864,11 +890,11 @@ export default function DoctorDashboard() {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        table: ({ node, ...props }) => <table className="w-full border-collapse my-4 text-sm" {...props} />,
-                        thead: ({ node, ...props }) => <thead className="bg-indigo-50/50" {...props} />,
-                        th: ({ node, ...props }) => <th className="border-b border-gray-200 px-4 py-2 text-left font-bold text-indigo-900" {...props} />,
-                        td: ({ node, ...props }) => <td className="border-b border-gray-100 px-4 py-2" {...props} />,
-                        strong: ({ node, ...props }) => <strong className="font-bold text-indigo-600 dark:text-indigo-400" {...props} />,
+                        table: ({ ...props }) => <table className="w-full border-collapse my-4 text-sm" {...props} />,
+                        thead: ({ ...props }) => <thead className="bg-indigo-50/50" {...props} />,
+                        th: ({ ...props }) => <th className="border-b border-gray-200 px-4 py-2 text-left font-bold text-indigo-900" {...props} />,
+                        td: ({ ...props }) => <td className="border-b border-gray-100 px-4 py-2" {...props} />,
+                        strong: ({ ...props }) => <strong className="font-bold text-indigo-600 dark:text-indigo-400" {...props} />,
                       }}
                     >
                       {aiBriefing}

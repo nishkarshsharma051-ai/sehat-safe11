@@ -22,8 +22,8 @@ export default function Login({ selectedRole, onBack }: LoginProps) {
         try {
             setError('');
             await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || 'Failed to sign in with Google');
+        } catch (err) {
+            setError((err as Error).message || 'Failed to sign in with Google');
         }
     };
 
@@ -47,15 +47,16 @@ export default function Login({ selectedRole, onBack }: LoginProps) {
                     await signInWithEmail(email, password);
                 }
             }
-        } catch (err: any) {
-            if (err.code === 'auth/email-already-in-use') {
+        } catch (err) {
+            const authError = err as { code?: string; message: string };
+            if (authError.code === 'auth/email-already-in-use') {
                 setError('An account with this email already exists');
-            } else if (err.code === 'auth/invalid-credential') {
+            } else if (authError.code === 'auth/invalid-credential') {
                 setError('Invalid email or password');
-            } else if (err.code === 'auth/weak-password') {
+            } else if (authError.code === 'auth/weak-password') {
                 setError('Password must be at least 6 characters');
             } else {
-                setError(err.message || 'Authentication failed');
+                setError(authError.message || 'Authentication failed');
             }
         } finally {
             setLoading(false);

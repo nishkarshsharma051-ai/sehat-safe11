@@ -34,17 +34,16 @@ export default function NearbyHospitals() {
     const [locationError, setLocationError] = useState('');
     const [selectedHospital, setSelectedHospital] = useState<typeof PRESET_HOSPITALS[0] | null>(null);
 
-    useEffect(() => {
-        const load = async () => {
-            setFavorites(await hospitalFavoriteService.getAll(user?.uid || 'anonymous'));
-        };
-        load();
+    const loadFavorites = useCallback(async () => {
+        const uid = user?.uid || 'anonymous';
+        setFavorites(await hospitalFavoriteService.getAll(uid));
     }, [user]);
 
-    // Auto-detect location on mount
     useEffect(() => {
-        requestLocation();
-    }, []);
+        loadFavorites();
+    }, [loadFavorites]);
+
+    // Auto-detect location on mount
 
     const requestLocation = useCallback(() => {
         if (!navigator.geolocation) {
@@ -67,6 +66,10 @@ export default function NearbyHospitals() {
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
         );
     }, []);
+
+    useEffect(() => {
+        requestLocation();
+    }, [requestLocation]);
 
     const filteredHospitals = PRESET_HOSPITALS.filter(h =>
         h.name.toLowerCase().includes(search.toLowerCase()) ||

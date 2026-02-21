@@ -10,7 +10,7 @@ export const getDoctors = async (req: Request, res: Response) => {
         // Or return as makes sense for the new schema
         const formattedDoctors = doctors.map(doc => ({
             id: doc._id,
-            full_name: (doc.userId as any).name, // cast to any because populate
+            full_name: (doc.userId as unknown as { name: string }).name,
             specialization: doc.specialization,
             hospital_name: doc.hospitalName,
             availability: doc.availability,
@@ -31,7 +31,7 @@ export const getDoctorById = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Doctor not found' });
         }
         res.json(doctor);
-    } catch (error) {
+    } catch {
         res.status(500).json({ error: 'Failed to fetch doctor' });
     }
 };

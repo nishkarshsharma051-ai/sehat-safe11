@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Plus, Droplet, Heart, Scale } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { HealthEntry } from '../../types';
@@ -19,13 +19,13 @@ export default function HealthTrends() {
     const [activeMetric, setActiveMetric] = useState('sugar');
     const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], sugar: '', bp_systolic: '', bp_diastolic: '', weight: '' });
 
-    useEffect(() => {
-        loadEntries();
+    const loadEntries = useCallback(async () => {
+        setEntries(await healthEntryService.getByType(user?.uid || 'anonymous', 'vitals'));
     }, [user]);
 
-    const loadEntries = async () => {
-        setEntries(await healthEntryService.getByType(user?.uid || 'anonymous', 'vitals'));
-    };
+    useEffect(() => {
+        loadEntries();
+    }, [loadEntries]);
 
     const addReading = async () => {
         const values: Record<string, number> = {};

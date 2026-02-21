@@ -37,16 +37,17 @@ function AppContent() {
 
     if (user) {
       const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
-      const existing = users.find((u: any) => u.id === user.uid);
+      const existing = users.find((u: { id: string; role?: string }) => u.id === user.uid);
 
       // Check for backend user role (Admin or Regular)
       // PRIORITY 1: Backend Role (Source of Truth)
-      if ((user as any).role) {
-        if ((user as any).role === 'admin') {
+      const userWithRole = user as { uid: string; role?: 'patient' | 'doctor' | 'admin' };
+      if (userWithRole.role) {
+        if (userWithRole.role === 'admin') {
           setIsAdmin(true);
           if (!role) setRole('doctor');
         } else {
-          setRole((user as any).role); // Lock to backend role
+          setRole(userWithRole.role as 'patient' | 'doctor'); // Lock to backend role
         }
       }
       // PRIORITY 2: Local Storage Role (Fallback / Legacy)
@@ -55,7 +56,7 @@ function AppContent() {
           setIsAdmin(true);
           if (!role) setRole('doctor');
         } else {
-          setRole(existing.role);
+          setRole(existing.role as 'patient' | 'doctor');
         }
       }
       // PRIORITY 3: Pre-Auth Selection (New Registration)

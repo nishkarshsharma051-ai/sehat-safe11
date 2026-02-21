@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Send, Bot, User as UserIcon, Loader, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,22 +13,11 @@ export default function ChatBot() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<unknown>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadChatHistory();
-  }, [user]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const loadChatHistory = async () => {
+  const loadChatHistory = useCallback(async () => {
     try {
       const history = await chatService.getHistory(user?.uid || 'anonymous');
       setMessages(history);
@@ -42,7 +31,19 @@ export default function ChatBot() {
     } finally {
       setLoadingHistory(false);
     }
+  }, [user]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    loadChatHistory();
+  }, [loadChatHistory]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,12 +73,12 @@ export default function ChatBot() {
 
       const aiResponse = await getGeminiResponse(userMessage, history, {
         name: user?.displayName || 'Guest',
-        role: (user as any)?.role || 'patient',
-        age: userProfile?.age,
-        gender: userProfile?.gender,
-        bloodGroup: userProfile?.blood_group,
-        allergies: userProfile?.allergies,
-        conditions: userProfile?.chronic_conditions
+        role: (user as { role?: string }).role || 'patient',
+        age: (userProfile as { age?: number })?.age,
+        gender: (userProfile as { gender?: string })?.gender,
+        bloodGroup: (userProfile as { blood_group?: string })?.blood_group,
+        allergies: (userProfile as { allergies?: string[] })?.allergies,
+        conditions: (userProfile as { chronic_conditions?: string[] })?.chronic_conditions
       });
 
       const finalMsg: ChatMessage = {
@@ -175,14 +176,14 @@ export default function ChatBot() {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        table: ({ node, ...props }) => <table className="w-full border-collapse my-4" {...props} />,
-                        thead: ({ node, ...props }) => <thead className="bg-blue-50/50" {...props} />,
-                        th: ({ node, ...props }) => <th className="border border-blue-100 px-4 py-2 text-left font-semibold text-blue-800" {...props} />,
-                        td: ({ node, ...props }) => <td className="border border-blue-100 px-4 py-2" {...props} />,
-                        ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
-                        ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-1 my-2" {...props} />,
-                        li: ({ node, ...props }) => <li className="pl-1" {...props} />,
-                        strong: ({ node, ...props }) => <strong className="font-bold text-blue-900" {...props} />,
+                        table: ({ ...props }) => <table className="w-full border-collapse my-4" {...props} />,
+                        thead: ({ ...props }) => <thead className="bg-blue-50/50" {...props} />,
+                        th: ({ ...props }) => <th className="border border-blue-100 px-4 py-2 text-left font-semibold text-blue-800" {...props} />,
+                        td: ({ ...props }) => <td className="border border-blue-100 px-4 py-2" {...props} />,
+                        ul: ({ ...props }) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                        ol: ({ ...props }) => <ol className="list-decimal pl-5 space-y-1 my-2" {...props} />,
+                        li: ({ ...props }) => <li className="pl-1" {...props} />,
+                        strong: ({ ...props }) => <strong className="font-bold text-blue-900" {...props} />,
                       }}
                     >
                       {msg.response}

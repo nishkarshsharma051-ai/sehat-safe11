@@ -15,7 +15,7 @@ export interface DocumentData {
     ocrText?: string;
     ocrConfidence?: number;
     processed: boolean;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 // ─── Storage Service ────────────────────────────────────────────────────────

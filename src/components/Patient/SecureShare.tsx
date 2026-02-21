@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, Copy, Clock, Trash2, CheckCircle, Shield } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { SecureShareLink } from '../../types';
@@ -10,13 +10,14 @@ export default function SecureShare() {
     const [expiryHours, setExpiryHours] = useState(24);
     const [copied, setCopied] = useState('');
 
-    useEffect(() => {
-        loadLinks();
+
+    const loadLinks = useCallback(async () => {
+        setLinks(await secureShareService.getAll(user?.uid || 'anonymous'));
     }, [user]);
 
-    const loadLinks = async () => {
-        setLinks(await secureShareService.getAll(user?.uid || 'anonymous'));
-    };
+    useEffect(() => {
+        loadLinks();
+    }, [loadLinks]);
 
     const createLink = async () => {
         await secureShareService.create(user?.uid || 'anonymous', expiryHours);

@@ -1,5 +1,4 @@
 import { API_BASE_URL } from '../config';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 /**
  * Google Gemini AI Service

@@ -1,7 +1,5 @@
 import { Request, Response } from 'express';
 import Appointment from '../models/Appointment';
-import User from '../models/User';
-import Doctor from '../models/Doctor';
 
 export const getAppointments = async (req: Request, res: Response) => {
     try {
@@ -66,5 +64,27 @@ export const updateAppointmentStatus = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error updating appointment:', error);
         res.status(500).json({ error: 'Failed to update appointment' });
+    }
+};
+export const bulkUpdateStatus = async (req: Request, res: Response) => {
+    try {
+        const { ids, status } = req.body;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'Invalid or empty IDs array' });
+        }
+
+        const result = await Appointment.updateMany(
+            { _id: { $in: ids } },
+            { status }
+        );
+
+        res.json({
+            message: `Successfully updated ${result.modifiedCount} appointments`,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error('Error bulk updating appointments:', error);
+        res.status(500).json({ error: 'Failed to bulk update appointments' });
     }
 };

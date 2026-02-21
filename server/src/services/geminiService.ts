@@ -42,9 +42,18 @@ const emergencyKeywords = [
     "breathing problem",
 ];
 
+interface UserContext {
+    name: string;
+    role: string;
+    age?: number | string;
+    gender?: string;
+    allergies?: string[];
+    conditions?: string[];
+}
+
 export const geminiService = {
     // Renamed to match controller's expectation (generateHealthResponse)
-    async generateHealthResponse(userMessage: string, history: { role: string; parts: { text: string }[] }[] = [], userContext?: any) {
+    async generateHealthResponse(userMessage: string, userContext?: UserContext) {
         try {
             const message = userMessage.trim().toLowerCase();
 

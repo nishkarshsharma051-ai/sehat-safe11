@@ -17,7 +17,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
 
   const [progress, setProgress] = useState(0);
   const [ocrStepText, setOcrStepText] = useState('Extracting text from document...');
-  const [ocrResult, setOcrResult] = useState<any>(null);
+  const [ocrResult, setOcrResult] = useState<{ doctor: string; date: string; medicines: { name: string }[]; diagnosis: string } | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,7 +32,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
       const res = await fetch(`${API_BASE_URL}/api/health`);
       if (res.ok) setServerStatus('online');
       else setServerStatus('error');
-    } catch (e) {
+    } catch {
       setServerStatus('error');
     }
   };
@@ -126,7 +126,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
         diagnosis: finalData.diagnosis,
         prescription_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
-        category: activeTab as any,
+        category: activeTab as 'prescription' | 'lab' | 'scan' | 'discharge',
         tags: tags.split(',').filter(Boolean).map(t => t.trim())
       };
 
@@ -138,9 +138,9 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
       setUiState('success');
       if (onUploadComplete) onUploadComplete();
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMessage(err.message || 'Upload failed');
+      setErrorMessage((err as Error).message || 'Upload failed');
       setUiState('error');
     }
   };
@@ -316,7 +316,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                       <div className="col-span-2">
                         <span className="block text-xs font-bold text-gray-400 uppercase">Medicines</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {ocrResult.medicines.map((m: any, i: number) => (
+                          {ocrResult.medicines.map((m, i) => (
                             <span key={i} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded text-xs font-bold">
                               {m.name}
                             </span>

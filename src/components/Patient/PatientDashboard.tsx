@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { LucideIcon } from 'lucide-react';
 import {
   FileText, Calendar, Bell, MessageSquare, LogOut, Sun, Moon,
   Activity, Heart, Shield, MapPin, TrendingUp, Clock, Users, Link, LayoutDashboard, Settings, Menu, X, ChevronRight
@@ -31,7 +32,7 @@ type ViewType =
   | 'health-summary' | 'risk-score' | 'secure-share' | 'hospitals'
   | 'insurance' | 'timeline' | 'trends' | 'family' | 'settings';
 
-const NAV_ITEMS: { id: ViewType; label: string; icon: any; section?: string; badge?: string; badgeLabel?: string }[] = [
+const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: string; badge?: string; badgeLabel?: string }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   // Core
   { id: 'prescriptions', label: 'Prescriptions', icon: FileText, section: 'Core' },
@@ -59,28 +60,29 @@ export default function PatientDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [stats, setStats] = useState({ prescriptions: 0, appointments: 0, reminders: 0, timeline: 0, insurance: 0, family: 0 });
 
+  const loadStats = useCallback(async () => {
+    const uid = user?.uid || 'anonymous';
+    const [prescriptions, appointments, reminders, timeline, insurance, family] = await Promise.all([
+      prescriptionService.getAll(uid),
+      appointmentService.getByPatient(uid),
+      reminderService.getAll(uid),
+      healthEntryService.getAll(uid),
+      insuranceService.getAll(uid),
+      familyService.getAll(uid),
+    ]);
+    setStats({
+      prescriptions: prescriptions.length,
+      appointments: appointments.filter((a: { status: string }) => a.status !== 'cancelled').length,
+      reminders: reminders.filter((r: { is_active: boolean }) => r.is_active).length,
+      timeline: timeline.length,
+      insurance: insurance.length,
+      family: family.length,
+    });
+  }, [user]);
+
   useEffect(() => {
-    const loadStats = async () => {
-      const uid = user?.uid || 'anonymous';
-      const [prescriptions, appointments, reminders, timeline, insurance, family] = await Promise.all([
-        prescriptionService.getAll(uid),
-        appointmentService.getByPatient(uid),
-        reminderService.getAll(uid),
-        healthEntryService.getAll(uid),
-        insuranceService.getAll(uid),
-        familyService.getAll(uid),
-      ]);
-      setStats({
-        prescriptions: prescriptions.length,
-        appointments: appointments.filter((a: any) => a.status !== 'cancelled').length,
-        reminders: reminders.filter((r: any) => r.is_active).length,
-        timeline: timeline.length,
-        insurance: insurance.length,
-        family: family.length,
-      });
-    };
     loadStats();
-  }, [user, activeView]);
+  }, [loadStats, activeView]);
 
   // Close mobile menu when view changes
   useEffect(() => {
@@ -403,8 +405,8 @@ export default function PatientDashboard() {
                   </div>
                   {item.badge && (
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${activeView === item.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                       }`}>
                       {item.badgeLabel}
                     </span>

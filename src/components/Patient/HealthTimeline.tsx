@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Trash2, FileText, Activity, Scissors, ClipboardList, Heart } from 'lucide-react';
+import { Clock, Plus, Trash2, FileText, Activity, Scissors, ClipboardList, Heart, LucideIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { HealthEntry } from '../../types';
 import { healthEntryService } from '../../services/dataService';
 
-const TYPE_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
+const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string; label: string }> = {
     test: { icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Lab Test' },
     prescription: { icon: FileText, color: 'text-green-600', bg: 'bg-green-100', label: 'Prescription' },
     surgery: { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100', label: 'Surgery' },

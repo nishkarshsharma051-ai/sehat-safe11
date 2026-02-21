@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FileText, Trash2, ExternalLink, Calendar, Pill, X, Download, Filter, Tag } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Prescription } from '../../types';
@@ -19,11 +19,7 @@ export default function PrescriptionList() {
   const [filterTo, setFilterTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    loadPrescriptions();
-  }, [user, filterCategory, filterTag, filterFrom, filterTo]);
-
-  const loadPrescriptions = async () => {
+  const loadPrescriptions = useCallback(async () => {
     try {
       const data = await prescriptionService.getFiltered(user?.uid || 'anonymous', {
         category: filterCategory || undefined,
@@ -37,13 +33,17 @@ export default function PrescriptionList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, filterCategory, filterTag, filterFrom, filterTo]);
+
+  useEffect(() => {
+    loadPrescriptions();
+  }, [loadPrescriptions]);
 
   useEffect(() => {
     const handleReload = () => loadPrescriptions();
     window.addEventListener('prescriptions-updated', handleReload);
     return () => window.removeEventListener('prescriptions-updated', handleReload);
-  }, [user, filterCategory, filterTag, filterFrom, filterTo]);
+  }, [loadPrescriptions]);
 
   const deletePrescription = async (id: string) => {
     if (!confirm('Are you sure you want to delete this prescription?')) return;
@@ -108,7 +108,7 @@ export default function PrescriptionList() {
         doc.text("Prescribed Medicines", 20, y);
         y += 6;
 
-        const tableData = p.medicines.map((m: any) => [
+        const tableData = p.medicines.map((m: { name: string; dosage?: string; frequency?: string; duration?: string }) => [
           m.name,
           m.dosage || '-',
           m.frequency || '-',
@@ -125,7 +125,7 @@ export default function PrescriptionList() {
         });
 
         // Update y to be below table
-        y = (doc as any).lastAutoTable.finalY + 15;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
       } else {
         y += 15;
       }
@@ -344,7 +344,7 @@ export default function PrescriptionList() {
                     <td className="px-6 py-4">
                       {prescription.medicines && Array.isArray(prescription.medicines) && prescription.medicines.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {prescription.medicines.map((med: any, idx: number) => (
+                          {prescription.medicines.map((med: { name: string }, idx: number) => (
                             <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               <Pill className="w-3 h-3 mr-1" />{med.name}
                             </span>
@@ -422,7 +422,7 @@ export default function PrescriptionList() {
               <div className="mb-4">
                 <p className="text-sm font-medium text-gray-700 mb-2">Medicines:</p>
                 <div className="space-y-3">
-                  {selectedPrescription.medicines.map((med: any, idx: number) => (
+                  {selectedPrescription.medicines.map((med: { name: string; dosage?: string; frequency?: string; duration?: string }, idx: number) => (
                     <div key={idx} className="p-3 bg-white/50 rounded-lg">
                       <p className="font-medium text-gray-800 flex items-center">
                         <Pill className="w-4 h-4 mr-2 text-blue-500" />{med.name}
