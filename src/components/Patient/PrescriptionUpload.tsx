@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Server } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, RefreshCw, Server, Download } from 'lucide-react';
+
 import { useAuth } from '../../contexts/AuthContext';
-import { Prescription } from '../../types';
-import { prescriptionService } from '../../services/dataService';
 import { GlassCard } from '../ui/GlassCard';
 import { PremiumButton } from '../ui/PremiumButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../../config';
+import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
+
 
 export default function PrescriptionUpload({ onUploadComplete }: { onUploadComplete?: () => void }) {
   const { user } = useAuth();
@@ -18,6 +19,8 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
   const [progress, setProgress] = useState(0);
   const [ocrStepText, setOcrStepText] = useState('Extracting text from document...');
   const [ocrResult, setOcrResult] = useState<{ doctor: string; date: string; medicines: { name: string }[]; diagnosis: string } | null>(null);
+  const [uploadedPrescriptionId, setUploadedPrescriptionId] = useState<string | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,8 +95,13 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
       formData.append('image', file);
       formData.append('patientId', user.uid);
 
-      const response = await fetch(`${API_BASE_URL}/api/process-prescription`, {
+      const token = localStorage.getItem('auth_token');
+
+      const response = await fetch(`${API_BASE_URL}/api/prescriptions/process-prescription`, {
         method: 'POST',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: formData
       });
 
@@ -105,37 +113,23 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
       }
 
       const result = await response.json();
-      const { analysis, extractedText, prescriptionId, fileUrl } = result;
+      const { analysis, medicines } = result;
 
-      // b. Save metadata & structure
+      // Extract relevant data for display in UI
       const finalData = {
         doctor: analysis['Doctor Name'] || 'Unknown',
         date: analysis['Date'] || new Date().toLocaleDateString(),
-        medicines: analysis['Medicines'] || [],
+        medicines: medicines || [], // Use medicines from backend result
         diagnosis: analysis['Diagnosis'] || 'Unknown'
       };
 
-      const prescription: Prescription = {
-        id: prescriptionId || Date.now().toString(),
-        patient_id: user.uid,
-        doctor_name: finalData.doctor,
-        file_url: fileUrl, // Use actual file URL from backend
-        extracted_text: extractedText,
-        ai_summary: `Diagnosis: ${finalData.diagnosis}`,
-        medicines: finalData.medicines,
-        diagnosis: finalData.diagnosis,
-        prescription_date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        category: activeTab as 'prescription' | 'lab' | 'scan' | 'discharge',
-        tags: tags.split(',').filter(Boolean).map(t => t.trim())
-      };
-
-      // Add to local context/service for immediate display
-      await prescriptionService.add(prescription);
-
       // Success State
       setOcrResult(finalData);
+      setUploadedPrescriptionId(result.prescriptionId || null);
+      setUploadedFileUrl(result.fileUrl || null);
       setUiState('success');
+      // Notify PrescriptionList to reload
+      window.dispatchEvent(new CustomEvent('prescriptions-updated'));
       if (onUploadComplete) onUploadComplete();
 
     } catch (err) {
@@ -148,6 +142,8 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
   const reset = () => {
     setUiState('idle');
     setOcrResult(null);
+    setUploadedPrescriptionId(null);
+    setUploadedFileUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -327,9 +323,30 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                   </div>
                 )}
 
-                <PremiumButton onClick={reset} variant="primary" icon={<RefreshCw className="w-4 h-4" />}>
-                  Upload Another
-                </PremiumButton>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <PremiumButton
+                    onClick={() => {
+                      if (uploadedPrescriptionId || uploadedFileUrl) {
+                        downloadPrescriptionPdf({
+                          id: uploadedPrescriptionId || '',
+                          doctor_name: ocrResult?.doctor,
+                          diagnosis: ocrResult?.diagnosis,
+                          medicines: ocrResult?.medicines || [],
+                          file_url: uploadedFileUrl || undefined,
+                          created_at: new Date().toISOString(),
+                        } as any);
+                      }
+                    }}
+                    variant="primary"
+                    icon={<Download className="w-4 h-4" />}
+                    disabled={!uploadedPrescriptionId && !uploadedFileUrl}
+                  >
+                    Download PDF
+                  </PremiumButton>
+                  <PremiumButton onClick={reset} variant="secondary" icon={<RefreshCw className="w-4 h-4" />}>
+                    Upload Another
+                  </PremiumButton>
+                </div>
               </motion.div>
             )}
 

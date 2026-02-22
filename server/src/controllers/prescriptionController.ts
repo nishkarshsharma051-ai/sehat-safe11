@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { preprocessImage } from "../utils/imageProcessor";
 import { MedicalNER } from "../utils/medicalNER";
+import { generatePrescriptionPDF } from "../services/pdfService";
 
 export const analyzePrescription = async (req: Request, res: Response) => {
     try {
@@ -141,16 +142,64 @@ export const analyzePrescription = async (req: Request, res: Response) => {
         let prescriptionId = null;
         if (mongoose.connection.readyState === 1 && req.body.patientId) {
             try {
-                const prescription = await Prescription.create({
-                    patientId: req.body.patientId,
-                    imageUrl: fileUrl,
-                    extractedText,
-                    medicines: extractedMedicines,
-                    analysis: JSON.stringify(analysis)
-                });
-                prescriptionId = prescription._id;
+                let resolvedPatientId = req.body.patientId;
+
+                // If patientId is not a valid MongoDB ObjectId, it might be a Firebase UID
+                if (!mongoose.Types.ObjectId.isValid(resolvedPatientId)) {
+                    console.log(`[OCR] patientId ${resolvedPatientId} is not a valid ObjectId, looking up via firebaseUid...`);
+                    const user = await User.findOne({ firebaseUid: resolvedPatientId });
+                    if (user) {
+                        resolvedPatientId = user._id;
+                        console.log(`[OCR] Resolved patientId to MongoDB ObjectId: ${resolvedPatientId}`);
+                    } else {
+                        console.warn(`[OCR] Could not find user with firebaseUid: ${resolvedPatientId}`);
+                    }
+                }
+
+                if (mongoose.Types.ObjectId.isValid(resolvedPatientId)) {
+                    // Get full user details for PDF
+                    const fullUser = await User.findById(resolvedPatientId);
+
+                    const prescription = await Prescription.create({
+                        patientId: resolvedPatientId,
+                        imageUrl: fileUrl,
+                        extractedText,
+                        medicines: extractedMedicines.map(m => ({
+                            name: m.name,
+                            dosage: m.dosage,
+                            frequency: m.frequency,
+                            duration: m.duration
+                        })),
+                        analysis: JSON.stringify(analysis),
+                        date: new Date()
+                    });
+                    prescriptionId = prescription._id;
+                    console.log(`[OCR] Prescription saved successfully with ID: ${prescriptionId}`);
+
+                    // 4. Generate Structured PDF
+                    try {
+                        const pdfPath = await generatePrescriptionPDF({
+                            id: prescriptionId.toString(),
+                            patientName: fullUser?.name || "Unknown Patient",
+                            doctorName: doctorName,
+                            date: new Date().toLocaleDateString(),
+                            diagnosis: diagnosis,
+                            medicines: extractedMedicines,
+                            extractedText: extractedText
+                        });
+
+                        // Update prescription with PDF URL
+                        await Prescription.findByIdAndUpdate(prescriptionId, { pdfUrl: pdfPath });
+                        console.log(`[OCR] PDF generated and linked: ${pdfPath}`);
+                        (analysis as any).pdfUrl = pdfPath; // Add to response analysis for frontend
+                    } catch (pdfErr) {
+                        console.error('[OCR] PDF Generation failed:', pdfErr);
+                    }
+                } else {
+                    console.error('[OCR] Invalid patientId after resolution attempt. Skipping save.');
+                }
             } catch (dbError) {
-                console.warn('[OCR] DB save failed:', dbError);
+                console.error('[OCR] DB save failed:', dbError);
             }
         }
 
@@ -202,12 +251,37 @@ export const getPrescriptions = async (req: Request, res: Response) => {
                 else return res.json([]);
             }
         } else if (role === 'doctor' && userId) {
-            if (mongoose.Types.ObjectId.isValid(userId as string)) {
-                query = { doctorId: userId };
-            } else {
-                const user = await User.findOne({ firebaseUid: userId });
-                if (user) query = { doctorId: user._id };
+            // Resolve doctor ObjectId (Firebase UID → MongoDB _id)
+            let resolvedDoctorId: any = userId as string;
+            if (!mongoose.Types.ObjectId.isValid(userId as string)) {
+                const dUser = await User.findOne({ firebaseUid: userId });
+                if (dUser) resolvedDoctorId = dUser._id;
                 else return res.json([]);
+            }
+
+            try {
+                // Get all patient IDs for whom this doctor has appointments
+                const AppointmentModel = (await import('../models/Appointment')).default;
+                const doctorApts = await AppointmentModel
+                    .find({ doctorId: resolvedDoctorId })
+                    .select('patientId')
+                    .lean();
+
+                // Filter to only valid MongoDB ObjectIds (skip any Firebase UIDs stored by mistake)
+                const patientIds = [...new Set(
+                    doctorApts
+                        .map((a: any) => a.patientId?.toString())
+                        .filter((id: string) => id && mongoose.Types.ObjectId.isValid(id))
+                )].map((id: string) => new mongoose.Types.ObjectId(id));
+
+                if (patientIds.length > 0) {
+                    query = { $or: [{ patientId: { $in: patientIds } }, { doctorId: resolvedDoctorId }] } as any;
+                } else {
+                    query = { doctorId: resolvedDoctorId };
+                }
+            } catch (aptErr) {
+                console.error('[Prescriptions] Failed to fetch doctor appointments for join:', aptErr);
+                query = { doctorId: resolvedDoctorId }; // Fallback: only direct doctor prescriptions
             }
         }
 
@@ -230,5 +304,35 @@ export const getPrescriptions = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error fetching prescriptions:', error);
         res.status(500).json({ error: 'Failed to fetch prescriptions' });
+    }
+};
+
+export const deletePrescription = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const prescription = await Prescription.findByIdAndDelete(id);
+
+        if (!prescription) {
+            return res.status(404).json({ error: 'Prescription not found' });
+        }
+
+        // Optional: Delete physical file if it exists in uploads
+        if (prescription.imageUrl) {
+            const filePath = path.join(__dirname, '../../', prescription.imageUrl);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+        if (prescription.pdfUrl) {
+            const pdfPath = path.join(__dirname, '../../', prescription.pdfUrl);
+            if (fs.existsSync(pdfPath)) {
+                fs.unlinkSync(pdfPath);
+            }
+        }
+
+        res.json({ message: 'Prescription deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting prescription:', error);
+        res.status(500).json({ error: 'Failed to delete prescription' });
     }
 };

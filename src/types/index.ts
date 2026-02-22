@@ -54,8 +54,8 @@ export interface MedicineReminder {
   medicine_name: string;
   dosage: string;
   frequency: string;
-  start_date: string;
-  end_date: string;
+  start_date?: string;
+  end_date?: string;
   reminder_times: string[];
   is_active: boolean;
   created_at?: string;

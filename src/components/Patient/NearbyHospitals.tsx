@@ -4,15 +4,24 @@ import { useAuth } from '../../contexts/AuthContext';
 import { HospitalFavorite } from '../../types';
 import { hospitalFavoriteService } from '../../services/dataService';
 
-const PRESET_HOSPITALS = [
-    { name: 'AIIMS Delhi', address: 'Sri Aurobindo Marg, New Delhi', phone: '011-26588500', type: 'hospital' as const, lat: 28.5672, lng: 77.2100 },
-    { name: 'Safdarjung Hospital', address: 'Ansari Nagar, New Delhi', phone: '011-26707437', type: 'hospital' as const, lat: 28.5685, lng: 77.2066 },
-    { name: 'Apollo Hospital', address: 'Mathura Road, Sarita Vihar, Delhi', phone: '011-71791090', type: 'hospital' as const, lat: 28.5300, lng: 77.2830 },
-    { name: 'Fortis Hospital', address: 'Sector 62, Noida', phone: '0120-4300222', type: 'hospital' as const, lat: 28.6262, lng: 77.3650 },
-    { name: 'Max Super Speciality', address: 'Saket, New Delhi', phone: '011-26515050', type: 'hospital' as const, lat: 28.5277, lng: 77.2144 },
-    { name: 'Medanta Hospital', address: 'Sector 38, Gurugram', phone: '0124-4141414', type: 'hospital' as const, lat: 28.4433, lng: 77.0412 },
-    { name: 'Sir Ganga Ram Hospital', address: 'Rajinder Nagar, New Delhi', phone: '011-25861313', type: 'hospital' as const, lat: 28.6380, lng: 77.1868 },
-    { name: 'BLK Super Speciality', address: 'Pusa Road, New Delhi', phone: '011-30403040', type: 'hospital' as const, lat: 28.6413, lng: 77.1785 },
+interface Hospital {
+    name: string;
+    address: string;
+    phone: string;
+    type: 'hospital';
+    lat: number;
+    lng: number;
+}
+
+const PRESET_HOSPITALS: Hospital[] = [
+    { name: 'AIIMS Delhi', address: 'Sri Aurobindo Marg, New Delhi', phone: '011-26588500', type: 'hospital', lat: 28.5672, lng: 77.2100 },
+    { name: 'Safdarjung Hospital', address: 'Ansari Nagar, New Delhi', phone: '011-26707437', type: 'hospital', lat: 28.5685, lng: 77.2066 },
+    { name: 'Apollo Hospital', address: 'Mathura Road, Sarita Vihar, Delhi', phone: '011-71791090', type: 'hospital', lat: 28.5300, lng: 77.2830 },
+    { name: 'Fortis Hospital', address: 'Sector 62, Noida', phone: '0120-4300222', type: 'hospital', lat: 28.6262, lng: 77.3650 },
+    { name: 'Max Super Speciality', address: 'Saket, New Delhi', phone: '011-26515050', type: 'hospital', lat: 28.5277, lng: 77.2144 },
+    { name: 'Medanta Hospital', address: 'Sector 38, Gurugram', phone: '0124-4141414', type: 'hospital', lat: 28.4433, lng: 77.0412 },
+    { name: 'Sir Ganga Ram Hospital', address: 'Rajinder Nagar, New Delhi', phone: '011-25861313', type: 'hospital', lat: 28.6380, lng: 77.1868 },
+    { name: 'BLK Super Speciality', address: 'Pusa Road, New Delhi', phone: '011-30403040', type: 'hospital', lat: 28.6413, lng: 77.1785 },
 ];
 
 /** Haversine distance in km */
@@ -31,8 +40,10 @@ export default function NearbyHospitals() {
     const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [locating, setLocating] = useState(false);
+    const [fetching, setFetching] = useState(false);
     const [locationError, setLocationError] = useState('');
-    const [selectedHospital, setSelectedHospital] = useState<typeof PRESET_HOSPITALS[0] | null>(null);
+    const [dynamicHospitals, setDynamicHospitals] = useState<Hospital[]>([]);
+    const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
 
     const loadFavorites = useCallback(async () => {
         const uid = user?.uid || 'anonymous';
@@ -67,11 +78,54 @@ export default function NearbyHospitals() {
         );
     }, []);
 
+    const fetchNearbyHospitals = async (lat: number, lng: number) => {
+        setFetching(true);
+        try {
+            // Overpass API Query for hospitals within 10km
+            const query = `
+                [out:json][timeout:25];
+                (
+                  node["amenity"="hospital"](around:10000,${lat},${lng});
+                  way["amenity"="hospital"](around:10000,${lat},${lng});
+                  rel["amenity"="hospital"](around:10000,${lat},${lng});
+                );
+                out center;
+            `;
+            const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Failed to fetch hospitals');
+
+            const data = await response.json();
+            const results: Hospital[] = data.elements.map((el: any) => ({
+                name: el.tags.name || 'Unnamed Hospital',
+                address: el.tags['addr:street'] || el.tags['addr:full'] || 'Address near your location',
+                phone: el.tags.phone || el.tags['contact:phone'] || 'N/A',
+                type: 'hospital',
+                lat: el.lat || el.center.lat,
+                lng: el.lon || el.center.lon
+            }));
+
+            setDynamicHospitals(results.length > 0 ? results : PRESET_HOSPITALS);
+        } catch (error) {
+            console.error('Hospital fetch error:', error);
+            setDynamicHospitals(PRESET_HOSPITALS); // Fallback
+        } finally {
+            setFetching(false);
+        }
+    };
+
+    useEffect(() => {
+        if (userLocation) {
+            fetchNearbyHospitals(userLocation.lat, userLocation.lng);
+        }
+    }, [userLocation]);
+
     useEffect(() => {
         requestLocation();
     }, [requestLocation]);
 
-    const filteredHospitals = PRESET_HOSPITALS.filter(h =>
+    const hospitalsToUse = dynamicHospitals.length > 0 ? dynamicHospitals : PRESET_HOSPITALS;
+
+    const filteredHospitals = hospitalsToUse.filter((h: Hospital) =>
         h.name.toLowerCase().includes(search.toLowerCase()) ||
         h.address.toLowerCase().includes(search.toLowerCase())
     );
@@ -85,7 +139,7 @@ export default function NearbyHospitals() {
 
     const isFavorite = (name: string) => favorites.some(f => f.name === name);
 
-    const toggleFavorite = async (hospital: typeof PRESET_HOSPITALS[0]) => {
+    const toggleFavorite = async (hospital: Hospital) => {
         const uid = user?.uid || 'anonymous';
         if (isFavorite(hospital.name)) {
             const fav = favorites.find(f => f.name === hospital.name);
@@ -101,14 +155,14 @@ export default function NearbyHospitals() {
         setFavorites(await hospitalFavoriteService.getAll(uid));
     };
 
-    const openDirections = (hospital: typeof PRESET_HOSPITALS[0]) => {
+    const openDirections = (hospital: Hospital) => {
         const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
         const dest = `${hospital.lat},${hospital.lng}`;
         window.open(`https://www.google.com/maps/dir/${origin}/${dest}`, '_blank');
     };
 
     const displayList = activeTab === 'favorites'
-        ? sortedHospitals.filter(h => isFavorite(h.name))
+        ? sortedHospitals.filter((h: Hospital) => isFavorite(h.name))
         : sortedHospitals;
 
     // Build Google Maps embed URL
@@ -142,8 +196,8 @@ export default function NearbyHospitals() {
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                             }`}>
-                        {locating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
-                        <span>{locating ? 'Locating...' : userLocation ? 'Location Active' : 'Get Location'}</span>
+                        {locating || fetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
+                        <span>{locating ? 'Locating...' : fetching ? 'Finding Hospitals...' : userLocation ? 'Location Active' : 'Get Location'}</span>
                     </button>
                 </div>
 
@@ -198,7 +252,7 @@ export default function NearbyHospitals() {
                             <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <p className="text-gray-500">{activeTab === 'favorites' ? 'No favorites saved yet' : 'No hospitals found'}</p>
                         </div>
-                    ) : displayList.map((hospital, idx) => {
+                    ) : displayList.map((hospital: Hospital, idx: number) => {
                         const dist = userLocation ? distanceKm(userLocation.lat, userLocation.lng, hospital.lat, hospital.lng) : null;
                         const isSelected = selectedHospital?.name === hospital.name;
                         return (

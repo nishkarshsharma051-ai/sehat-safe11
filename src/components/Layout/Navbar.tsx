@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Heart, LogOut, User, Sun, Moon, Menu, X } from 'lucide-react';
+import { Heart, LogOut, User, Sun, Moon, Menu, X, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
@@ -37,6 +37,13 @@ export default function Navbar() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-3">
+            {(user as any)?.role === 'admin' && (
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-600 border border-purple-200/50">
+                <Shield className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Admin</span>
+              </div>
+            )}
+
             <button
               onClick={toggleTheme}
               className="relative p-2.5 rounded-xl bg-white/50 dark:bg-white/10 hover:bg-white/70 dark:hover:bg-white/20 transition-all duration-300 group"
@@ -103,9 +110,14 @@ export default function Navbar() {
                   <User className="w-5 h-5 text-gray-600" />
                 )}
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {user?.displayName || 'User'}
-                  </p>
+                  <div className="flex items-center space-x-1.5">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {user?.displayName || 'User'}
+                    </p>
+                    {(user as any)?.role === 'admin' && (
+                      <Shield className="w-3.5 h-3.5 text-purple-600" />
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
               </div>

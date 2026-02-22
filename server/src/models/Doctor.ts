@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IDoctor extends Document {
     userId: mongoose.Types.ObjectId;
     specialization: string;
+    qualifications: string;
     hospitalName: string;
     experience: number;
     rating: number;
@@ -14,6 +15,7 @@ export interface IDoctor extends Document {
 const DoctorSchema: Schema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     specialization: { type: String, required: true },
+    qualifications: { type: String, required: true },
     hospitalName: { type: String, required: true },
     experience: { type: Number, required: true },
     rating: { type: Number, default: 0 },

@@ -42,3 +42,45 @@ export const getDoctorPatients = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to fetch doctor patients' });
     }
 };
+
+// Create a manual patient entry
+export const createManualPatient = async (req: Request, res: Response) => {
+    try {
+        const { full_name, phone, gender, age } = req.body;
+
+        if (!full_name || !phone) {
+            return res.status(400).json({ error: 'Name and phone are required' });
+        }
+
+        // Check if patient already exists by phone
+        let patient = await User.findOne({ contactNumber: phone });
+
+        if (!patient) {
+            // Create new patient with a virtual email
+            const virtualEmail = `manual_${phone}@sehatsafe.com`;
+            patient = new User({
+                name: full_name,
+                email: virtualEmail,
+                contactNumber: phone,
+                gender,
+                age,
+                role: 'patient'
+            });
+            await patient.save();
+        }
+
+        res.status(201).json({
+            id: patient._id,
+            role: patient.role,
+            full_name: patient.name,
+            email: patient.email,
+            phone: patient.contactNumber,
+            gender: patient.gender,
+            age: patient.age,
+            created_at: patient.createdAt
+        });
+    } catch (error) {
+        console.error('Error creating manual patient:', error);
+        res.status(500).json({ error: 'Failed to create manual patient' });
+    }
+};

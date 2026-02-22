@@ -18,6 +18,7 @@ interface BackendUser {
     photoURL?: string;
     role?: string;
     isBackend?: boolean;
+    token?: string;
 }
 
 interface AuthContextType {
@@ -28,12 +29,14 @@ interface AuthContextType {
     signInWithBackend: (email: string, password: string) => Promise<boolean>;
     signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
     logout: () => Promise<void>;
+    token: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | BackendUser | null>(null);
+    const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -57,14 +60,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     if (response.ok) {
                         const data = await response.json();
                         const backendUser: BackendUser = {
-                            uid: firebaseUser.uid,
+                            uid: data.user.id, // Use MongoDB _id
                             email: data.user.email,
                             displayName: data.user.name,
                             role: data.user.role,
-                            isBackend: true
+                            isBackend: true,
+                            token: data.token
                         };
                         setUser(backendUser);
+                        setToken(data.token);
                         localStorage.setItem('backend_user', JSON.stringify(backendUser));
+                        localStorage.setItem('auth_token', data.token);
                     } else {
                         setUser(firebaseUser);
                     }
@@ -110,10 +116,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     email: data.user.email,
                     displayName: data.user.name,
                     role: data.user.role,
-                    isBackend: true
+                    isBackend: true,
+                    token: data.token
                 };
                 setUser(backendUser);
+                setToken(data.token);
                 localStorage.setItem('backend_user', JSON.stringify(backendUser));
+                localStorage.setItem('auth_token', data.token);
             } else {
                 // User does not exist in backend -> Register with selected role
                 const regRes = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -134,10 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         email: data.user.email,
                         displayName: data.user.name,
                         role: data.user.role, // This is the PERMANENT role
-                        isBackend: true
+                        isBackend: true,
+                        token: data.token
                     };
                     setUser(backendUser);
+                    setToken(data.token);
                     localStorage.setItem('backend_user', JSON.stringify(backendUser));
+                    localStorage.setItem('auth_token', data.token);
                 }
             }
         } catch (e) {
@@ -160,10 +172,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     email: data.user.email,
                     displayName: data.user.name,
                     role: data.user.role,
-                    isBackend: true
+                    isBackend: true,
+                    token: data.token
                 };
                 setUser(backendUser);
+                setToken(data.token);
                 localStorage.setItem('backend_user', JSON.stringify(backendUser));
+                localStorage.setItem('auth_token', data.token);
 
                 // Also update the local storage user list for RoleSelection if needed
                 const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
@@ -224,13 +239,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = async () => {
         // Remove backend user info but keep the selected role to enforce immutability
         localStorage.removeItem('backend_user');
+        localStorage.removeItem('auth_token');
         // Do NOT remove 'sehat_safe_selected_role' so the chosen role persists across sessions
         await firebaseSignOut(auth);
         setUser(null);
+        setToken(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signInWithBackend, signUpWithEmail, logout }}>
+        <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signInWithBackend, signUpWithEmail, logout, token }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { analyzePrescription } from "../controllers/prescriptionController";
+import { protect } from "../utils/authMiddleware";
 
 const router = Router();
 
@@ -19,14 +20,16 @@ const upload = multer({
 
 router.post(
     "/process-prescription",
+    protect,
     upload.single("image"),
     analyzePrescription
 );
 
 // New Routes for Doctor Dashboard & History
-import { createPrescription, getPrescriptions } from "../controllers/prescriptionController";
+import { createPrescription, getPrescriptions, deletePrescription } from "../controllers/prescriptionController";
 
-router.post("/", createPrescription);
-router.get("/", getPrescriptions);
+router.post("/", protect, createPrescription);
+router.get("/", protect, getPrescriptions);
+router.delete("/:id", protect, deletePrescription);
 
 export default router;

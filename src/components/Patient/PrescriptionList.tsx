@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Trash2, ExternalLink, Calendar, Pill, X, Download, Filter, Tag } from 'lucide-react';
+import { FileText, Trash2, ExternalLink, Calendar, Pill, X, Download, Filter, Tag, Stethoscope } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Prescription } from '../../types';
 import { prescriptionService } from '../../services/dataService';
+import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
 
 const CATEGORY_LABELS: Record<string, string> = {
   prescription: 'Prescription', lab: 'Lab', scan: 'Scan', discharge: 'Discharge',
@@ -50,165 +51,14 @@ export default function PrescriptionList() {
     try {
       await prescriptionService.remove(id);
       setPrescriptions(prescriptions.filter((p) => p.id !== id));
+      alert('Prescription deleted successfully');
     } catch (error) {
       console.error('Error deleting prescription:', error);
+      alert('Failed to delete prescription: ' + (error as any).message);
     }
   };
 
-  const downloadPrescription = async (p: Prescription) => {
-    try {
-      // Dynamic import to avoid SSR issues if any, though this is CRA/Vite
-      const jsPDF = (await import('jspdf')).default;
-      const autoTable = (await import('jspdf-autotable')).default;
-
-      const doc = new jsPDF();
-
-      // -- Header --
-      doc.setFillColor(63, 81, 181); // Indigo 500
-      doc.rect(0, 0, 210, 40, 'F');
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont('helvetica', 'bold');
-      doc.text("Sehat Safe", 20, 25);
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text("Digital Health Prescription", 20, 32);
-
-      // -- Metadata --
-      doc.setTextColor(0, 0, 0);
-      let y = 55;
-
-      doc.setFontSize(10);
-      doc.text("Doctor:", 20, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(p.doctor_name || 'Unknown Doctor', 50, y);
-
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.text("Date:", 20, y);
-      doc.setFont('helvetica', 'bold');
-      doc.text(new Date(p.created_at).toLocaleDateString(), 50, y);
-
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.text("Diagnosis:", 20, y);
-      doc.setFont('helvetica', 'bold');
-      // Handle long diagnosis text wrapping
-      const diagnosisLines = doc.splitTextToSize(p.diagnosis || 'None', 120);
-      doc.text(diagnosisLines, 50, y);
-      y += (diagnosisLines.length * 6) + 4;
-
-      // -- Medicines Table --
-      if (p.medicines && p.medicines.length > 0) {
-        y += 5;
-        doc.setFontSize(14);
-        doc.setTextColor(63, 81, 181);
-        doc.text("Prescribed Medicines", 20, y);
-        y += 6;
-
-        const tableData = p.medicines.map((m: { name: string; dosage?: string; frequency?: string; duration?: string }) => [
-          m.name,
-          m.dosage || '-',
-          m.frequency || '-',
-          m.duration || '-'
-        ]);
-
-        autoTable(doc, {
-          startY: y,
-          head: [['Medicine', 'Dosage', 'Frequency', 'Duration']],
-          body: tableData,
-          theme: 'grid',
-          headStyles: { fillColor: [63, 81, 181] },
-          margin: { left: 20, right: 20 },
-        });
-
-        // Update y to be below table
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
-      } else {
-        y += 15;
-      }
-
-      // -- Extracted Text (Optional) --
-      if (p.extracted_text) {
-        if (y > 230) doc.addPage();
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Extracted Notes:", 20, y);
-        y += 6;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        const textLines = doc.splitTextToSize(p.extracted_text, 170);
-        // Limit lines to avoid huge output
-        doc.text(textLines.slice(0, 20), 20, y);
-        y += (Math.min(textLines.length, 20) * 5) + 10;
-      }
-
-      // -- Layout Original Image (Footer or New Page) --
-      if (p.file_url) {
-        // Add new page for the image to ensure it fits
-        doc.addPage();
-        doc.setFontSize(14);
-        doc.setTextColor(63, 81, 181);
-        doc.text("Original Document", 20, 20);
-
-        try {
-          // Convert image to base64 if needed, or if it's local URL/proxy
-          // Use an Image object to load it first
-          const img = new Image();
-          img.crossOrigin = "Anonymous"; // Try to avoid CORS issues
-          img.src = p.file_url;
-
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-          });
-
-          // Calculate aspect ratio to fit page (A4: 210x297mm)
-          const pageWidth = 190; // margin 10
-          const pageHeight = 250; // margin top 30
-          const imgRatio = img.width / img.height;
-
-          let w = pageWidth;
-          let h = w / imgRatio;
-
-          if (h > pageHeight) {
-            h = pageHeight;
-            w = h * imgRatio;
-          }
-
-          doc.addImage(img, 'JPEG', 10, 30, w, h);
-        } catch (e) {
-          console.warn("Could not embed image:", e);
-          doc.setFontSize(10);
-          doc.setTextColor(255, 0, 0);
-          doc.text("(Image could not be embedded - CORS or load error)", 20, 40);
-          // Fallback to link
-          doc.setTextColor(0, 0, 255);
-          doc.textWithLink("Click here to view original file", 20, 50, { url: p.file_url });
-        }
-      }
-
-      // Save
-      doc.save(`Prescription_${p.id}.pdf`);
-
-    } catch (e) {
-      console.error("PDF Generation failed", e);
-      alert("Failed to generate PDF. Downloading original file instead.");
-
-      // Fallback
-      if (p.file_url) {
-        const a = document.createElement('a');
-        a.href = p.file_url;
-        a.target = '_blank';
-        a.download = `prescription_${p.id}.jpg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    }
-  };
+  const downloadPrescription = (p: Prescription) => downloadPrescriptionPdf(p);
 
   const allTags = Array.from(new Set(prescriptions.flatMap(p => p.tags || [])));
 
@@ -336,10 +186,17 @@ export default function PrescriptionList() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-700">{prescription.diagnosis || '—'}</span>
-                      {prescription.doctor_name && (
-                        <p className="text-xs text-gray-400">{prescription.doctor_name}</p>
-                      )}
+                      <div className="max-w-[200px]">
+                        <span className="text-sm text-gray-700 font-medium line-clamp-2" title={prescription.diagnosis}>
+                          {prescription.diagnosis || '—'}
+                        </span>
+                        {prescription.doctor_name && (
+                          <p className="text-xs text-gray-400 mt-1 flex items-center">
+                            <Stethoscope className="w-3 h-3 mr-1" />
+                            {prescription.doctor_name}
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       {prescription.medicines && Array.isArray(prescription.medicines) && prescription.medicines.length > 0 ? (

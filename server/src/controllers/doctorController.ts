@@ -54,7 +54,7 @@ export const getDoctorById = async (req: Request, res: Response) => {
 // Helper to seed or create doctors for testing
 export const createDoctor = async (req: Request, res: Response) => {
     try {
-        const { name, email, specialization, hospitalName, experience, availability } = req.body;
+        const { name, email, specialization, qualifications, hospitalName, experience, availability } = req.body;
 
         // 1. Create User
         let user = await User.findOne({ email });
@@ -70,6 +70,7 @@ export const createDoctor = async (req: Request, res: Response) => {
         const doctor = await Doctor.create({
             userId: user._id,
             specialization,
+            qualifications,
             hospitalName,
             experience,
             availability
@@ -79,5 +80,49 @@ export const createDoctor = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error creating doctor:', error);
         res.status(500).json({ error: 'Failed to create doctor' });
+    }
+};
+
+// Complete/Update doctor profile
+export const completeProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).user._id;
+        const { specialization, qualifications, hospitalName, experience, availability, phone } = req.body;
+
+        if (!specialization || !qualifications || !hospitalName || !experience || !availability) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        // Update user contact number if provided
+        if (phone) {
+            await User.findByIdAndUpdate(userId, { contactNumber: phone });
+        }
+
+        let doctor = await Doctor.findOne({ userId });
+
+        if (doctor) {
+            // Update existing profile
+            doctor.specialization = specialization;
+            doctor.qualifications = qualifications;
+            doctor.hospitalName = hospitalName;
+            doctor.experience = experience;
+            doctor.availability = availability;
+            await doctor.save();
+        } else {
+            // Create new doctor profile
+            doctor = await Doctor.create({
+                userId,
+                specialization,
+                qualifications,
+                hospitalName,
+                experience,
+                availability
+            });
+        }
+
+        res.status(200).json(doctor);
+    } catch (error) {
+        console.error('Error completing doctor profile:', error);
+        res.status(500).json({ error: 'Failed to complete doctor profile' });
     }
 };

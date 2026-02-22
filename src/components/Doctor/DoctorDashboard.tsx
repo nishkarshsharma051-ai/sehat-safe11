@@ -3,7 +3,7 @@ import { LucideIcon } from 'lucide-react';
 import {
   Calendar, Users, Clock, FileText, Stethoscope, ClipboardList, Search,
   LogOut, Sun, Moon, LayoutDashboard, MessageSquare, Bell, Settings, Sparkles, PlusCircle,
-  Shield, Lock, User, Mail, Smartphone, Menu, X, ChevronRight, Activity
+  Shield, Lock, User, Mail, Smartphone, Menu, X, ChevronRight, Activity, Pill, Download
 } from 'lucide-react';
 import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
 import { GlassCard } from '../ui/GlassCard';
@@ -13,23 +13,39 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Appointment } from '../../types';
-import { appointmentService, patientService } from '../../services/dataService';
+import { Appointment, Prescription } from '../../types';
+import { appointmentService, patientService, doctorService, prescriptionService } from '../../services/dataService';
 import { getGeminiResponse } from '../../services/geminiService';
 import { AnimatePresence, motion } from 'framer-motion';
+import { API_BASE_URL } from '../../config';
 
 type ViewType = 'overview' | 'appointments' | 'patients' | 'records' | 'settings';
 
 export default function DoctorDashboard() {
-  const { logout } = useAuth();
+  // Profile Completion State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
+  const [regData, setRegData] = useState({
+    specialization: '',
+    qualifications: '',
+    hospitalName: '',
+    experience: 0,
+    availability: 'Mon-Fri, 9AM-5PM',
+    phone: ''
+  });
+
+  const { logout, user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [currentView, setCurrentView] = useState<ViewType>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [recordsSearch, setRecordsSearch] = useState('');
   const [patientSearch, setPatientSearch] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiBriefing, setAiBriefing] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<Prescription | null>(null);
 
   // Manual Entry State
   const [showManualModal, setShowManualModal] = useState(false);
@@ -40,12 +56,99 @@ export default function DoctorDashboard() {
 
   // Settings State
   const [profileData, setProfileData] = useState({
-    name: 'Dr. Sarah Wilson',
-    specialization: 'Cardiologist',
-    hospital: 'City General Hospital',
-    phone: '+91 98765 43210',
-    email: 'sarah.wilson@health.com'
+    name: user?.displayName || '',
+    specialization: '',
+    hospital: '',
+    phone: (user as any)?.phone || '',
+    email: user?.email || ''
   });
+
+  useEffect(() => {
+    const checkDoctorProfile = async () => {
+      const userId = (user as any)?.uid || (user as any)?.id;
+      if (!userId) return;
+
+      // Admin users are not doctors – skip the profile modal entirely
+      const userRole = (user as any)?.role;
+      if (userRole === 'admin') return;
+
+      // Check if user already completed their profile (cached locally)
+      const profileCacheKey = `doctor_profile_done_${userId}`;
+      const cachedDone = localStorage.getItem(profileCacheKey);
+      if (cachedDone === 'true') {
+        // Still try to load profile data for the sidebar display, but don't block on it
+        try {
+          const profile = await doctorService.getById(userId);
+          if (profile?.specialization) {
+            setProfileData({
+              name: user?.displayName || '',
+              specialization: profile.specialization,
+              hospital: profile.hospital_name || (profile as any).hospitalName || '',
+              phone: (user as any)?.phone || '',
+              email: user?.email || ''
+            });
+          }
+        } catch {
+          // silent - profile display is not critical
+        }
+        return; // Don't show the modal
+      }
+
+      try {
+        const profile = await doctorService.getById(userId);
+        if (profile && profile.specialization) {
+          // Profile exists and complete - cache it and update UI
+          localStorage.setItem(profileCacheKey, 'true');
+          setProfileData({
+            name: user?.displayName || '',
+            specialization: profile.specialization,
+            hospital: profile.hospital_name || (profile as any).hospitalName || '',
+            phone: (user as any)?.phone || '',
+            email: user?.email || ''
+          });
+        } else {
+          // Profile missing or incomplete - show the form
+          setShowProfileModal(true);
+          const userPhone = (user as any)?.phone;
+          if (userPhone) setRegData(prev => ({ ...prev, phone: userPhone }));
+        }
+      } catch (error: any) {
+        // Only show modal if it's a 404 (profile doesn't exist yet), not network errors
+        const is404 = error?.status === 404 || (error?.message && error.message.includes('404'));
+        if (is404 || !navigator.onLine) {
+          setShowProfileModal(true);
+        }
+        // On genuine network errors, don't repeatedly pester the doctor with the form
+      }
+    };
+    checkDoctorProfile();
+  }, [user]);
+
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingProfile(true);
+    try {
+      await doctorService.completeProfile(regData);
+      const userId = (user as any)?.uid || (user as any)?.id;
+      // Cache the completion so it never asks again on this device
+      if (userId) localStorage.setItem(`doctor_profile_done_${userId}`, 'true');
+      setShowProfileModal(false);
+      // Update the sidebar profile data
+      setProfileData({
+        name: user?.displayName || '',
+        specialization: regData.specialization,
+        hospital: regData.hospitalName,
+        phone: regData.phone || (user as any)?.phone || '',
+        email: user?.email || ''
+      });
+    } catch (error) {
+      console.error('Error completing profile:', error);
+      alert('Failed to complete profile: ' + (error as Error).message);
+    } finally {
+      setIsSubmittingProfile(false);
+    }
+  };
   const [notifications, setNotifications] = useState({
     email: true,
     sms: true,
@@ -66,10 +169,20 @@ export default function DoctorDashboard() {
     }
   }, []);
 
+  const loadPrescriptions = useCallback(async () => {
+    try {
+      const data = await prescriptionService.getAll();
+      setPrescriptions(data);
+    } catch (error) {
+      console.error('Error loading prescriptions:', error);
+    }
+  }, []);
+
   useEffect(() => {
     loadAppointments();
     loadPatients();
-  }, [loadAppointments, loadPatients, currentView]);
+    loadPrescriptions();
+  }, [loadAppointments, loadPatients, loadPrescriptions, currentView]);
 
   // Close mobile menu when view changes
   useEffect(() => {
@@ -117,31 +230,37 @@ export default function DoctorDashboard() {
         full_name: manualPatient.full_name,
         phone: manualPatient.phone,
         gender: manualPatient.gender as 'male' | 'female' | 'other',
+        age: manualPatient.age,
       });
 
-      await loadPatients();
-      setManualPatient({ full_name: '', age: '', gender: 'male', phone: '' });
-      setActiveTab('book'); // Switch to book tab
-      setManualAppointment(prev => ({ ...prev, patient_id: newPatient.id }));
+      // Alert and clear form
       alert('Patient Registered Successfully!');
+      setManualPatient({ full_name: '', age: '', gender: 'male', phone: '' });
+
+      // Switch to book tab and auto-select patient
+      setManualAppointment(prev => ({ ...prev, patient_id: newPatient.id }));
+      setActiveTab('book');
+
+      // Reload patients list for dropdown
+      const data = await patientService.getAll();
+      setAllPatients(data);
     } catch (error) {
       console.error('Error registering patient:', error);
+      alert('Error registering patient: ' + (error as Error).message);
     }
   };
 
   const handleManualBook = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const appointment: Appointment = {
-        id: Date.now().toString(),
+      const doctorUid = (user as any)?.uid || (user as any)?.id || '';
+      await appointmentService.add({
         patient_id: manualAppointment.patient_id,
-        doctor_id: 'current_doctor_id', // In real app, get from auth
+        doctor_id: doctorUid,
         appointment_date: `${manualAppointment.date}T${manualAppointment.time}`,
         status: 'confirmed',
         reason: manualAppointment.reason,
-      };
-
-      await appointmentService.add(appointment);
+      });
       await loadAppointments();
       setShowManualModal(false);
       setManualAppointment({ patient_id: '', date: '', time: '', reason: '' });
@@ -190,12 +309,25 @@ export default function DoctorDashboard() {
   );
   const completedAppointments = appointments.filter((apt) => apt.status === 'completed');
 
-  // Get unique patients from appointments
+  // Today's appointments only (for the overview panel)
+  const todayStr = new Date().toDateString();
+  const todaysAppointments = appointments.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return aptDate.toDateString() === todayStr &&
+      (apt.status === 'confirmed' || apt.status === 'pending');
+  }).sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime());
+
+  // Get unique patients - prefer name from allPatients list (which comes from backend)
   const uniquePatients = Array.from(
     new Map(
       appointments
         .filter(a => a.patient_id)
-        .map(a => [a.patient_id, { id: a.patient_id, name: a.patient?.full_name || `Patient ${a.patient_id.slice(-4)}`, appointmentCount: 0, lastVisit: a.appointment_date }])
+        .map(a => {
+          // Try to find real name from backend patient list
+          const backendPatient = allPatients.find(p => p.id === a.patient_id);
+          const name = a.patient?.full_name || backendPatient?.full_name || 'Unknown Patient';
+          return [a.patient_id, { id: a.patient_id, name, phone: backendPatient?.phone, appointmentCount: 0, lastVisit: a.appointment_date }];
+        })
     ).values()
   ).map(p => ({
     ...p,
@@ -390,7 +522,7 @@ export default function DoctorDashboard() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3 tracking-tight">
-          Good Morning, {profileData.name.split(' ')[1]}
+          Good Morning, {profileData.name.split(' ').filter(n => !n.includes('.')).shift() || 'Doctor'}
           <NeumorphicBadge variant="success" className="text-xs py-0.5">ONLINE</NeumorphicBadge>
         </h2>
         <p className="text-gray-500 dark:text-gray-400 text-lg">Your daily breakdown</p>
@@ -461,51 +593,56 @@ export default function DoctorDashboard() {
         <div className="lg:col-span-2">
           <GlassCard className="p-6 h-full">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                Today's Schedule
-              </h3>
-              <button onClick={() => setCurrentView('appointments')} className="text-sm text-blue-500 font-bold hover:text-blue-600 transition-colors">View All</button>
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-emerald-500" />
+                  Today's Schedule
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <button onClick={() => setCurrentView('appointments')} className="text-sm text-emerald-500 font-bold hover:text-emerald-600 transition-colors">All Appointments</button>
             </div>
 
-            {upcomingAppointments.length === 0 ? (
+            {todaysAppointments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
                   <Stethoscope className="w-8 h-8 text-gray-300 dark:text-gray-600" />
                 </div>
-                <p className="text-gray-900 dark:text-white font-semibold text-lg">No appointments</p>
-                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mt-1">Your schedule is clear for today. Use the manual entry to add patients.</p>
+                <p className="text-gray-900 dark:text-white font-semibold text-lg">No appointments today</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mt-1">Your schedule is clear for today. Use Manual Entry to add patients.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {upcomingAppointments.slice(0, 5).map((apt) => (
-                  <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer group">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-lg">
-                        {apt.patient_id.slice(-2)}
+                {todaysAppointments.map((apt) => {
+                  const patientName = apt.patient?.full_name ||
+                    allPatients.find(p => p.id === apt.patient_id)?.full_name ||
+                    'Patient';
+                  return (
+                    <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer group">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
+                          {patientName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 dark:text-white text-sm">{patientName}</p>
+                          <div className="flex items-center text-xs text-gray-500 mt-1 space-x-2">
+                            <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                            <span className="truncate max-w-[120px]">{apt.reason}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-900 dark:text-white text-sm">Patient #{apt.patient_id.slice(-4)}</p>
-                        <div className="flex items-center text-xs text-gray-500 mt-1 space-x-2">
-                          <span className="flex items-center"><Clock className="w-3 h-3 mr-1" />{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                          <span>{apt.reason}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${apt.status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'}`}>
+                          {apt.status}
+                        </span>
+                        <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {apt.status === 'pending' && (
-                        <div className="px-3 py-1 bg-green-500/10 text-green-600 rounded-lg text-xs font-bold">
-                          Pending
-                        </div>
-                      )}
-                      <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center">
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </GlassCard>
@@ -683,43 +820,168 @@ export default function DoctorDashboard() {
     </div>
   );
 
-  const renderRecords = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Medical Records</h2>
-      {completedAppointments.length === 0 ? (
-        <GlassCard className="p-12 text-center">
-          <ClipboardList className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-          <p className="text-gray-500 dark:text-gray-400">No medical records generated yet.</p>
-        </GlassCard>
-      ) : (
-        <div className="space-y-4">
-          {completedAppointments.map((apt) => (
-            <GlassCard key={apt.id} className="p-1 flex items-center justify-between group overflow-hidden">
-              <div className="flex items-center p-4 flex-1">
-                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform mr-4">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-800 dark:text-white">Consultation Report</h3>
-                  <div className="flex items-center mt-1 space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span>Patient #{apt.patient_id.slice(-4)}</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                    <span>{new Date(apt.appointment_date).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              </div>
+  const renderRecords = () => {
+    const filteredPrescriptions = prescriptions.filter(p => {
+      const patientName = (p as any).patient?.name || (p as any).patientId?.name || '';
+      return !recordsSearch ||
+        patientName.toLowerCase().includes(recordsSearch.toLowerCase()) ||
+        (p.ai_summary || '').toLowerCase().includes(recordsSearch.toLowerCase()) ||
+        (p.diagnosis || '').toLowerCase().includes(recordsSearch.toLowerCase());
+    });
 
-              <div className="pr-4">
-                <PremiumButton variant="ghost" size="sm" className="group-hover:bg-purple-50 dark:group-hover:bg-purple-900/20">
-                  View
-                </PremiumButton>
-              </div>
-            </GlassCard>
-          ))}
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Medical Records</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{prescriptions.length} record{prescriptions.length !== 1 ? 's' : ''} stored</p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search records..."
+              value={recordsSearch}
+              onChange={(e) => setRecordsSearch(e.target.value)}
+              className="pl-10 pr-4 py-2 rounded-xl bg-white/50 dark:bg-black/20 border border-transparent focus:border-purple-500 focus:bg-white dark:focus:bg-black/40 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all w-64 text-sm"
+            />
+          </div>
         </div>
-      )}
-    </div>
-  );
+
+        {filteredPrescriptions.length === 0 ? (
+          <GlassCard className="p-12 text-center">
+            <ClipboardList className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+            <h3 className="text-lg font-bold text-gray-700 dark:text-white mb-2">No Medical Records</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Prescriptions uploaded by patients will appear here automatically.</p>
+          </GlassCard>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredPrescriptions.map((pres) => {
+              const patientName = (pres as any).patient?.full_name || (pres as any).patientId?.name || 'Patient';
+              const medicines = pres.medicines || [];
+              const dateStr = new Date(pres.created_at || pres.prescription_date || '').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+              return (
+                <GlassCard key={pres.id} className="p-5 group hover:shadow-xl transition-all border-l-4 border-l-purple-500">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-lg">
+                        {patientName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-800 dark:text-white text-sm">{patientName}</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{dateStr}</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-[10px] rounded-lg font-bold uppercase">
+                      {pres.category || 'Prescription'}
+                    </span>
+                  </div>
+
+                  {pres.diagnosis && (
+                    <div className="mb-3 p-3 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100/20 dark:border-indigo-500/10">
+                      <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-bold uppercase tracking-wider mb-1">Diagnosis</p>
+                      <p className="text-sm text-gray-800 dark:text-gray-200 font-medium leading-relaxed line-clamp-2">{pres.diagnosis}</p>
+                    </div>
+                  )}
+
+                  {medicines.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wide mb-2 flex items-center gap-1">
+                        <Pill className="w-3 h-3" /> Medicines ({medicines.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {medicines.slice(0, 3).map((med, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[11px] rounded-full font-medium">
+                            {med.name}
+                          </span>
+                        ))}
+                        {medicines.length > 3 && (
+                          <span className="px-2 py-0.5 bg-gray-100 dark:bg-white/10 text-gray-500 text-[11px] rounded-full">+{medicines.length - 3} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => setSelectedRecord(pres)}
+                      className="flex-1 py-2 text-xs font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                    >
+                      View Details
+                    </button>
+                    {(pres as any).pdfUrl && (
+                      <a
+                        href={`${API_BASE_URL}${(pres as any).pdfUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                      >
+                        <Download className="w-3 h-3" /> PDF
+                      </a>
+                    )}
+                  </div>
+                </GlassCard>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Record Detail Modal */}
+        <AnimatePresence>
+          {selectedRecord && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedRecord(null)} />
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white dark:bg-[#1C1C1E] rounded-[2rem] w-full max-w-2xl max-h-[85vh] overflow-y-auto relative z-10 shadow-2xl">
+                <div className="p-6 bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-between">
+                  <div className="text-white">
+                    <h3 className="text-xl font-bold">Medical Record</h3>
+                    <p className="text-purple-100 text-sm mt-1">{(selectedRecord as any).patientId?.name || 'Patient'}</p>
+                  </div>
+                  <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="p-6 space-y-5">
+                  {selectedRecord.diagnosis && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Diagnosis</p>
+                      <p className="text-gray-800 dark:text-gray-200">{selectedRecord.diagnosis}</p>
+                    </div>
+                  )}
+                  {selectedRecord.medicines?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Prescribed Medicines</p>
+                      <div className="space-y-2">
+                        {selectedRecord.medicines.map((med, i) => (
+                          <div key={i} className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-blue-800 dark:text-blue-300 text-sm">{med.name}</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400">{med.dosage} • {med.frequency}</p>
+                            </div>
+                            {med.duration && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-lg">{med.duration}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedRecord.extracted_text && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Extracted Text (OCR)</p>
+                      <pre className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-white/5 p-4 rounded-xl overflow-auto max-h-40 whitespace-pre-wrap">{selectedRecord.extracted_text}</pre>
+                    </div>
+                  )}
+                  {selectedRecord.ai_summary && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">AI Analysis</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl">{selectedRecord.ai_summary}</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
@@ -929,10 +1191,12 @@ export default function DoctorDashboard() {
 
           <div className="mb-4">
             <div className="px-3 py-2 bg-white/50 dark:bg-white/5 rounded-xl flex items-center space-x-3 border border-gray-200/50 dark:border-white/5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">SW</div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold uppercase">
+                {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'D'}
+              </div>
               <div>
-                <p className="text-xs font-bold text-gray-900 dark:text-white">Dr. Sarah Wilson</p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">Cardiologist</p>
+                <p className="text-xs font-bold text-gray-900 dark:text-white">{profileData.name || 'Doctor'}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">{profileData.specialization || 'Professional'}</p>
               </div>
             </div>
           </div>
@@ -978,6 +1242,111 @@ export default function DoctorDashboard() {
         </div>
       </main>
 
+      <AnimatePresence>
+        {showProfileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="glass-card w-full max-w-2xl overflow-hidden"
+            >
+              <div className="p-8">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="bg-emerald-100 p-2 rounded-xl">
+                    <Stethoscope className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Complete Your Profile</h2>
+                    <p className="text-gray-600 dark:text-gray-400">Provide your professional details to start your journey.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleProfileSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Specialization</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Cardiologist"
+                        value={regData.specialization}
+                        onChange={(e) => setRegData({ ...regData, specialization: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Qualifications</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. MBBS, MD"
+                        value={regData.qualifications}
+                        onChange={(e) => setRegData({ ...regData, qualifications: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Hospital/Clinic Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. City General"
+                        value={regData.hospitalName}
+                        onChange={(e) => setRegData({ ...regData, hospitalName: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Experience (Years)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 5"
+                        value={regData.experience || ''}
+                        onChange={(e) => setRegData({ ...regData, experience: parseInt(e.target.value) || 0 })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Availability</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Mon-Fri, 9AM-5PM"
+                        value={regData.availability}
+                        onChange={(e) => setRegData({ ...regData, availability: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number</label>
+                      <input
+                        type="tel"
+                        required
+                        value={regData.phone}
+                        onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-emerald-500 outline-none transition-all dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <PremiumButton
+                      type="submit"
+                      variant="primary"
+                      isLoading={isSubmittingProfile}
+                      className="px-8"
+                    >
+                      Complete Registration
+                    </PremiumButton>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

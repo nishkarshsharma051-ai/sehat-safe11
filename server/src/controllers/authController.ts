@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
-
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const generateToken = (id: any, role: string) => {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET as string, {
+        expiresIn: '30d',
+    });
+};
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -44,7 +50,8 @@ export const register = async (req: Request, res: Response) => {
                 name: user.name,
                 email: user.email,
                 role: user.role
-            }
+            },
+            token: generateToken(user._id, user.role)
         });
 
     } catch (error) {
@@ -85,7 +92,10 @@ export const login = async (req: Request, res: Response) => {
             role: user.role
         };
 
-        res.json({ user: userResponse });
+        res.json({
+            user: userResponse,
+            token: generateToken(user._id, user.role)
+        });
 
     } catch (error) {
         console.error('Login error:', error);
@@ -110,7 +120,10 @@ export const verifyUser = async (req: Request, res: Response) => {
             role: user.role
         };
 
-        res.json({ user: userResponse });
+        res.json({
+            user: userResponse,
+            token: generateToken(user._id, user.role)
+        });
     } catch (error) {
         console.error('Verify user error:', error);
         res.status(500).json({ error: 'Internal server error' });

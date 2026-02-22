@@ -169,8 +169,8 @@ export default function MedicineReminders() {
                 <div className="text-sm">
                   <span className="text-gray-600">Duration: </span>
                   <span className="text-gray-800">
-                    {new Date(reminder.start_date).toLocaleDateString()} –{' '}
-                    {new Date(reminder.end_date).toLocaleDateString()}
+                    {reminder.start_date ? new Date(reminder.start_date).toLocaleDateString() : 'N/A'} –{' '}
+                    {reminder.end_date ? new Date(reminder.end_date).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </div>

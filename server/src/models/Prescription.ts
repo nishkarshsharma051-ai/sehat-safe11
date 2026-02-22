@@ -12,6 +12,7 @@ export interface IPrescription extends Document {
         duration: string;
     }>;
     analysis?: string; // AI Analysis
+    pdfUrl?: string; // Generated PDF
     date: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -29,6 +30,7 @@ const PrescriptionSchema: Schema = new Schema({
         duration: String
     }],
     analysis: { type: String },
+    pdfUrl: { type: String },
     date: { type: Date, default: Date.now }
 }, {
     timestamps: true

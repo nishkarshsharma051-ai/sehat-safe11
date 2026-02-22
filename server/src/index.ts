@@ -32,15 +32,26 @@ import chatRoutes from './routes/chat.routes';
 import doctorRoutes from './routes/doctor.routes';
 import appointmentRoutes from './routes/appointment.routes';
 import authRoutes from './routes/auth.routes';
+import hospitalRoutes from './routes/hospital.routes';
+import reminderRoutes from './routes/reminder.routes';
+import healthRoutes from './routes/health.routes';
+import patientDataRoutes from './routes/patientData.routes';
 
-app.use('/api', prescriptionRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', doctorRoutes);
 app.use('/api', appointmentRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/hospitals', hospitalRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/health-data', healthRoutes);
+app.use('/api/patient-data', patientDataRoutes);
 
 import patientRoutes from './routes/patient.routes';
+import adminRoutes from './routes/admin.routes';
+
 app.use('/api/patients', patientRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 app.listen(port, () => {

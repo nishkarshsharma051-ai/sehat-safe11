@@ -5,11 +5,15 @@ import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/Layout/PageTransition';
 import Login from './components/Auth/Login';
 
-// Lazy load heavy components
+// Role Selection is critical for LCP (initial view), load it eagerly
+import RoleSelection from './components/Auth/RoleSelection';
+
+// Lazy load other heavy dashboard components
 const PatientDashboard = lazy(() => import('./components/Patient/PatientDashboard'));
 const DoctorDashboard = lazy(() => import('./components/Doctor/DoctorDashboard'));
 const EmergencySOS = lazy(() => import('./components/Emergency/EmergencySOS'));
-const RoleSelection = lazy(() => import('./components/Auth/RoleSelection'));
+const AdminDashboard = lazy(() => import('./components/Admin/AdminDashboard'));
+const ViewSwitcher = lazy(() => import('./components/Admin/ViewSwitcher'));
 
 function LoadingSpinner() {
   return (
@@ -24,8 +28,8 @@ function LoadingSpinner() {
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [role, setRole] = useState<'patient' | 'doctor' | null>(null);
-  const [preAuthRole, setPreAuthRole] = useState<'patient' | 'doctor' | null>(null);
+  const [role, setRole] = useState<'patient' | 'doctor' | 'admin' | null>(null);
+  const [preAuthRole, setPreAuthRole] = useState<'patient' | 'doctor' | 'admin' | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -35,48 +39,55 @@ function AppContent() {
       setPreAuthRole(savedRole as 'patient' | 'doctor');
     }
 
-    if (user) {
-      const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
-      const existing = users.find((u: { id: string; role?: string }) => u.id === user.uid);
+    if (!user) {
+      setIsAdmin(false);
+      setRole(null);
+      return;
+    }
 
-      // Check for backend user role (Admin or Regular)
-      // PRIORITY 1: Backend Role (Source of Truth)
-      const userWithRole = user as { uid: string; role?: 'patient' | 'doctor' | 'admin' };
-      if (userWithRole.role) {
-        if (userWithRole.role === 'admin') {
-          setIsAdmin(true);
-          if (!role) setRole('doctor');
-        } else {
-          setRole(userWithRole.role as 'patient' | 'doctor'); // Lock to backend role
-        }
-      }
-      // PRIORITY 2: Local Storage Role (Fallback / Legacy)
-      else if (existing && existing.role) {
-        if (existing.role === 'admin') {
-          setIsAdmin(true);
-          if (!role) setRole('doctor');
-        } else {
-          setRole(existing.role as 'patient' | 'doctor');
-        }
-      }
-      // PRIORITY 3: Pre-Auth Selection (New Registration)
-      else if (preAuthRole) {
-        setRole(preAuthRole);
+    const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
+    const existing = users.find((u: { id: string; role?: string }) => u.id === user.uid);
 
-        // Ensure it's saved in local storage profile if missing
-        if (!existing) {
-          const profile = {
-            id: user.uid,
-            role: preAuthRole,
-            full_name: user.displayName || 'New User',
-            created_at: new Date().toISOString(),
-            email: user.email
-          };
-          localStorage.setItem('sehat_safe_users', JSON.stringify([...users, profile]));
-        }
+    // Check for backend user role (Admin or Regular)
+    // PRIORITY 1: Backend Role (Source of Truth)
+    const userWithRole = user as { uid: string; role?: 'patient' | 'doctor' | 'admin' };
+    if (userWithRole.role) {
+      if (userWithRole.role === 'admin') {
+        setIsAdmin(true);
+        if (!role) setRole('admin');
+      } else {
+        setIsAdmin(false);
+        setRole(userWithRole.role as 'patient' | 'doctor'); // Lock to backend role
       }
     }
-  }, [user, role, preAuthRole]);
+    // PRIORITY 2: Local Storage Role (Fallback / Legacy)
+    else if (existing && existing.role) {
+      if (existing.role === 'admin') {
+        setIsAdmin(true);
+        if (!role) setRole('admin');
+      } else {
+        setIsAdmin(false);
+        setRole(existing.role as 'patient' | 'doctor');
+      }
+    }
+    // PRIORITY 3: Pre-Auth Selection (New Registration)
+    else if (preAuthRole) {
+      setIsAdmin(false);
+      setRole(preAuthRole as 'patient' | 'doctor' | 'admin');
+
+      // Ensure it's saved in local storage profile if missing
+      if (!existing) {
+        const profile = {
+          id: user.uid,
+          role: preAuthRole,
+          full_name: user.displayName || 'New User',
+          created_at: new Date().toISOString(),
+          email: user.email
+        };
+        localStorage.setItem('sehat_safe_users', JSON.stringify([...users, profile]));
+      }
+    }
+  }, [user, preAuthRole]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -87,14 +98,10 @@ function AppContent() {
     // 1a. If no role selected yet -> Show Role Selection
     if (!preAuthRole) {
       return (
-        <PageTransition key="role-selection">
-          <Suspense fallback={<LoadingSpinner />}>
-            <RoleSelection onSelect={(r) => {
-              setPreAuthRole(r);
-              localStorage.setItem('sehat_safe_selected_role', r);
-            }} />
-          </Suspense>
-        </PageTransition>
+        <RoleSelection onSelect={(r) => {
+          setPreAuthRole(r);
+          localStorage.setItem('sehat_safe_selected_role', r);
+        }} />
       );
     }
 
@@ -114,6 +121,19 @@ function AppContent() {
     return <LoadingSpinner />;
   }
 
+  if (effectiveRole === 'admin') {
+    return (
+      <PageTransition key="admin-dashboard">
+        <Suspense fallback={<LoadingSpinner />}>
+          <AdminDashboard />
+          {isAdmin && (
+            <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />
+          )}
+        </Suspense>
+      </PageTransition>
+    );
+  }
+
   if (effectiveRole === 'doctor') {
     return (
       <PageTransition key="doctor-dashboard">
@@ -121,14 +141,7 @@ function AppContent() {
           <DoctorDashboard />
           <EmergencySOS />
           {isAdmin && (
-            <div className="fixed bottom-24 right-6 z-50">
-              <button
-                onClick={() => setRole('patient')}
-                className="bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
-              >
-                <span>Switch to Patient View</span>
-              </button>
-            </div>
+            <ViewSwitcher currentRole={role || 'doctor'} onRoleChange={setRole} />
           )}
         </Suspense>
       </PageTransition>
@@ -141,14 +154,7 @@ function AppContent() {
         <PatientDashboard />
         <EmergencySOS />
         {isAdmin && (
-          <div className="fixed bottom-24 right-6 z-50">
-            <button
-              onClick={() => setRole('doctor')}
-              className="bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
-            >
-              <span>Switch to Doctor View</span>
-            </button>
-          </div>
+          <ViewSwitcher currentRole={role || 'patient'} onRoleChange={setRole} />
         )}
       </Suspense>
     </PageTransition>

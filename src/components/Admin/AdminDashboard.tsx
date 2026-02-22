@@ -1,33 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Users, FileText, Calendar, Activity, Download, Eye } from 'lucide-react';
+import { Users, FileText, Calendar, Activity, Download, Eye, Shield } from 'lucide-react';
 import Navbar from '../Layout/Navbar';
 import { UserProfile, Appointment, Prescription } from '../../types';
-import { userService, appointmentService, prescriptionService } from '../../services/dataService';
+import { adminService } from '../../services/dataService';
 
 export default function AdminDashboard() {
   const [currentView, setCurrentView] = useState('overview');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    patients: 0,
+    doctors: 0,
+    totalAppointments: 0,
+    totalPrescriptions: 0,
+    pendingAppointments: 0,
+  });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [fetchedUsers, fetchedAppointments, fetchedPrescriptions] = await Promise.all([
-        userService.getAll(),
-        appointmentService.getAll(),
-        prescriptionService.getAllGlobal()
+      const [fetchedStats, fetchedUsers, fetchedAppointments, fetchedPrescriptions] = await Promise.all([
+        adminService.getStats(),
+        adminService.getAllUsers(),
+        adminService.getAllAppointments(),
+        adminService.getAllPrescriptions()
       ]);
 
-      setUsers(fetchedUsers);
+      setStats(fetchedStats);
+
+      // Map users (Backend: _id, name -> FE: id, full_name)
+      setUsers(fetchedUsers.map((u: any) => ({
+        ...u,
+        id: u._id,
+        full_name: u.name,
+        created_at: u.createdAt
+      })));
+
       setAppointments(fetchedAppointments);
       setPrescriptions(fetchedPrescriptions);
-    } catch (error) {
-      console.error('Error loading data:', error);
+    } catch (err: any) {
+      console.error('Error loading data:', err);
+      setError('Failed to load dashboard data. Please ensure you have admin privileges.');
     } finally {
       setLoading(false);
     }
@@ -45,14 +67,7 @@ export default function AdminDashboard() {
     { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
   ];
 
-  const stats = {
-    totalUsers: users.length,
-    patients: users.filter((u) => u.role === 'patient').length,
-    doctors: users.filter((u) => u.role === 'doctor').length,
-    totalAppointments: appointments.length,
-    totalPrescriptions: prescriptions.length,
-    pendingAppointments: appointments.filter((a) => a.status === 'pending').length,
-  };
+  // Stats are now managed via state from fetchedStats
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -81,7 +96,25 @@ export default function AdminDashboard() {
         </aside>
 
         <main className="flex-1 p-8 overflow-x-hidden">
-          {currentView === 'overview' && (
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="glass-card p-8 text-center max-w-md">
+                <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h3>
+                <p className="text-gray-600 mb-6">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : currentView === 'overview' && (
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-gray-800">Admin Dashboard</h2>
 

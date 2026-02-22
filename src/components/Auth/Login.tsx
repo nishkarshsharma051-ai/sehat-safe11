@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Heart, Mail, Lock, User, ArrowRight, Sun, Moon, ArrowLeft } from 'lucide-react';
 
 interface LoginProps {
-    selectedRole?: 'patient' | 'doctor';
+    selectedRole?: 'patient' | 'doctor' | 'admin';
     onBack?: () => void;
 }
 

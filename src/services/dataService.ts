@@ -7,6 +7,7 @@ import {
     FamilyMember, SecureShareLink, HospitalFavorite, UserProfile,
     Medicine
 } from '../types';
+import { API_BASE_URL } from '../config';
 
 // Helper to get current user ID/Role from localStorage (set by AuthContext)
 const getUser = () => {
@@ -15,11 +16,34 @@ const getUser = () => {
 };
 
 const getAuthHeaders = () => {
-    // If we had JWT, add it here. For now, we rely on backend trusting us or session?
-    // Actually backend routes don't check token yet. 
-    // We pass userId in query or body as per current implementation.
+    const token = localStorage.getItem('auth_token');
     return {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+};
+
+const mapPrescription = (p: any): Prescription => {
+    let diagnosis = p.diagnosis || p.analysis;
+    // If diagnosis is an object (from Gemini/analysis), try to extract the string
+    if (diagnosis && typeof diagnosis === 'object') {
+        diagnosis = (diagnosis as any).diagnosis || (diagnosis as any).summary || JSON.stringify(diagnosis);
+    }
+
+    return {
+        id: p._id,
+        patient_id: p.patientId?._id || p.patientId,
+        doctor_id: p.doctorId?._id || p.doctorId,
+        doctor_name: p.doctor_name || p.doctorId?.name,
+        file_url: p.file_url || p.imageUrl || p.pdfUrl,
+        extracted_text: p.extracted_text || p.extractedText,
+        ai_summary: p.ai_summary || p.analysis,
+        medicines: p.medicines || [],
+        diagnosis: String(diagnosis || ''),
+        prescription_date: p.prescription_date || p.date || p.createdAt,
+        created_at: p.created_at || p.createdAt,
+        category: p.category,
+        tags: p.tags
     };
 };
 
@@ -48,7 +72,6 @@ export const userService = {
 };
 
 // ─── Prescriptions ────────────────────────────────
-import { API_BASE_URL } from '../config';
 
 export const prescriptionService = {
     async getAll(patientId?: string): Promise<Prescription[]> {
@@ -56,13 +79,20 @@ export const prescriptionService = {
         if (!user) return [];
 
         const params = new URLSearchParams();
-        params.append('userId', user.uid);
-        params.append('role', user.role || 'patient');
-        if (patientId) params.append('patientId', patientId);
+        // If a specific patientId is passed we're always fetching patient records,
+        // so force role=patient regardless of the logged-in user's role (e.g. admin).
+        // Normalize: admin viewing doctor dashboard should fetch as doctor
+        const effectiveRole = patientId ? 'patient' : (user.role === 'admin' ? 'doctor' : (user.role || 'patient'));
+        params.append('userId', patientId || user.uid);
+        params.append('role', effectiveRole);
+        if (patientId && patientId !== user.uid) params.append('patientId', patientId);
 
-        const res = await fetch(`${API_BASE_URL}/api/prescriptions?${params.toString()}`);
+        const res = await fetch(`${API_BASE_URL}/api/prescriptions?${params.toString()}`, {
+            headers: getAuthHeaders()
+        });
         if (!res.ok) return [];
-        return res.json();
+        const data = await res.json();
+        return Array.isArray(data) ? data.map(mapPrescription) : [];
     },
 
     async getAllGlobal(): Promise<Prescription[]> {
@@ -97,9 +127,15 @@ export const prescriptionService = {
         });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async remove(_id: string) {
-        // Not impl
+    async remove(id: string) {
+        const res = await fetch(`${API_BASE_URL}/api/prescriptions/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to delete prescription');
+        }
     },
 };
 
@@ -114,7 +150,9 @@ export const patientService = {
             url = `${API_BASE_URL}/api/patients/doctor/${user.uid}`;
         }
 
-        const res = await fetch(url);
+        const res = await fetch(url, {
+            headers: getAuthHeaders()
+        });
         if (!res.ok) return [];
 
         const data = await res.json();
@@ -129,24 +167,28 @@ export const patientService = {
         }));
     },
 
-    async addManual(patient: { full_name: string; phone?: string; gender?: string }): Promise<UserProfile> {
-        // Manual patients might need a separate collection or flag in backend
-        // For now, mockup or use a 'manual-patients' endpoint if we create one.
-        // Returning mock to not break UI logic relying on return
-        return {
-            id: `manual_${Date.now()}`,
-            role: 'patient' as const,
-            full_name: patient.full_name,
-            email: 'manual@example.com',
-            created_at: new Date().toISOString()
-        } as UserProfile;
+    async addManual(patient: { full_name: string; phone?: string; gender?: string; age?: string }): Promise<UserProfile> {
+        const res = await fetch(`${API_BASE_URL}/api/patients/manual`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(patient)
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to register patient');
+        }
+
+        return res.json();
     }
 };
 
 // ─── Appointments ─────────────────────────────────
 export const appointmentService = {
     async getByPatient(patientId: string): Promise<Appointment[]> {
-        const res = await fetch(`${API_BASE_URL}/api/appointments?role=patient&userId=${patientId}`);
+        const res = await fetch(`${API_BASE_URL}/api/appointments?role=patient&userId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
         if (!res.ok) return [];
         const data = await res.json();
         return data.appointments.map(mapAppointment);
@@ -155,7 +197,9 @@ export const appointmentService = {
     async getByDoctor(doctorId?: string): Promise<Appointment[]> {
         const user = getUser();
         const id = doctorId || user?.uid;
-        const res = await fetch(`${API_BASE_URL}/api/appointments?role=doctor&userId=${id}`);
+        const res = await fetch(`${API_BASE_URL}/api/appointments?role=doctor&userId=${id}`, {
+            headers: getAuthHeaders()
+        });
         if (!res.ok) return [];
         const data = await res.json();
         return data.appointments.map(mapAppointment);
@@ -165,8 +209,8 @@ export const appointmentService = {
         const user = getUser();
         if (!user) return [];
         const role = user.role || 'patient';
-        // Reuse specific fetch based on role
-        if (role === 'doctor') return this.getByDoctor(user.uid);
+        // Admins viewing doctor dashboard should fetch as doctor
+        if (role === 'doctor' || role === 'admin') return this.getByDoctor(user.uid);
         if (role === 'patient') return this.getByPatient(user.uid);
         return [];
     },
@@ -219,9 +263,9 @@ export const appointmentService = {
 };
 
 // Helper to map backend appointment to frontend type
-const mapAppointment = (a: { _id: string; patientId: { _id: string; name: string } | string; doctorId: { _id: string; name: string } | string; date: string; time: string; status: string; reason?: string; notes?: string; rating?: number }): Appointment => {
-    const pId = typeof a.patientId === 'object' ? a.patientId._id : a.patientId;
-    const dId = typeof a.doctorId === 'object' ? a.doctorId._id : a.doctorId;
+const mapAppointment = (a: any): Appointment => {
+    const pId = a.patientId?._id || a.patientId;
+    const dId = a.doctorId?._id || a.doctorId;
 
     return {
         id: String(a._id),
@@ -251,34 +295,41 @@ const mapAppointment = (a: { _id: string; patientId: { _id: string; name: string
 // ─── Doctors ──────────────────────────────────────
 export const doctorService = {
     async getAll(): Promise<Doctor[]> {
-        const res = await fetch(`${API_BASE_URL}/api/doctors`);
+        const res = await fetch(`${API_BASE_URL}/api/doctors`, {
+            headers: getAuthHeaders()
+        });
         if (!res.ok) return [];
-        const data = await res.json(); // returns { doctors: [] } ?
-        // Controller returns array or object?
-        // getDoctors in controller: res.json(doctors) -> array.
-        // Wait, checking doctorController response.
-        return Array.isArray(data) ? data.map((d: { userId: { _id: string; name: string }; _id: string; specialization: string; hospitalName: string }) => ({
-            id: d.userId?._id || d._id, // Depends on if it returns Doctor docs or User docs
-            role: 'doctor',
-            full_name: d.userId?.name || 'Doctor',
-            specialization: d.specialization || 'General',
-            hospital_name: d.hospitalName || 'Hospital',
-            // ...
-        })) : [];
+        const data = await res.json();
+        return data.doctors || [];
     },
 
-    async getById(id: string): Promise<Doctor | undefined> {
-        const res = await fetch(`${API_BASE_URL}/api/doctors/${id}`);
-        if (!res.ok) return undefined;
-        const d = await res.json();
-        return {
-            id: d._id,
-            role: 'doctor' as const,
-            full_name: d.userId?.name,
-            specialization: d.specialization,
-            hospital_name: d.hospitalName
-        };
+    async getById(id: string): Promise<Doctor | null> {
+        const res = await fetch(`${API_BASE_URL}/api/doctors/${id}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return null;
+        return res.json();
     },
+
+    async completeProfile(profile: {
+        specialization: string;
+        qualifications: string;
+        hospitalName: string;
+        experience: number;
+        availability: string;
+        phone?: string;
+    }): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/api/doctors/profile`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(profile)
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to complete profile');
+        }
+        return res.json();
+    }
 };
 
 // ─── Others (medicine reminders, basic local storage for now?) ───
@@ -309,31 +360,52 @@ const KEYS = {
 
 export const reminderService = {
     async getAll(patientId: string): Promise<MedicineReminder[]> {
-        const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
-        return all.filter(r => r.patient_id === patientId);
+        const res = await fetch(`${API_BASE_URL}/api/reminders?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((r: any) => ({
+            id: r._id,
+            patient_id: patientId,
+            medicine_name: r.medicineName,
+            dosage: r.dosage,
+            reminder_times: r.reminderTimes || [],
+            frequency: r.frequency,
+            is_active: r.isActive,
+            taken_history: r.takenHistory
+        }));
     },
     async add(reminder: MedicineReminder) {
-        const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
-        storage.set(KEYS.REMINDERS, [...all, reminder]);
+        await fetch(`${API_BASE_URL}/api/reminders`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientId: reminder.patient_id,
+                medicineName: reminder.medicine_name,
+                dosage: reminder.dosage,
+                reminderTimes: reminder.reminder_times,
+                frequency: reminder.frequency
+            })
+        });
     },
     async toggle(id: string) {
-        const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
-        storage.set(KEYS.REMINDERS, all.map(r => r.id === id ? { ...r, is_active: !r.is_active } : r));
+        await fetch(`${API_BASE_URL}/api/reminders/${id}/toggle`, {
+            method: 'PATCH',
+            headers: getAuthHeaders()
+        });
     },
     async remove(id: string) {
-        const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
-        storage.set(KEYS.REMINDERS, all.filter(r => r.id !== id));
+        await fetch(`${API_BASE_URL}/api/reminders/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
     },
     async markTaken(id: string) {
-        const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
-        storage.set(KEYS.REMINDERS, all.map(r => {
-            if (r.id === id) {
-                const history = r.taken_history || [];
-                history.push({ timestamp: new Date().toISOString(), taken: true });
-                return { ...r, taken_history: history };
-            }
-            return r;
-        }));
+        await fetch(`${API_BASE_URL}/api/reminders/${id}/taken`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
     },
     async getTakenHistory(id: string) {
         const all = storage.get<MedicineReminder>(KEYS.REMINDERS);
@@ -432,76 +504,188 @@ export const chatService = {
 
 export const healthProfileService = {
     async get(patientId: string): Promise<HealthProfile | null> {
-        const all = storage.get<HealthProfile>(KEYS.HEALTH_PROFILES);
-        return all.find(p => p.patient_id === patientId) || null;
+        const res = await fetch(`${API_BASE_URL}/api/health-data/profile?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return null;
+        const p = await res.json();
+        if (!p) return null;
+        return {
+            id: p._id,
+            patient_id: patientId,
+            age: p.age,
+            weight: p.weight,
+            height: p.height,
+            blood_group: p.bloodGroup,
+            bp_systolic: p.bpSystolic,
+            bp_diastolic: p.bpDiastolic,
+            sugar_level: p.sugarLevel,
+            allergies: p.allergies || [],
+            chronic_conditions: p.chronicConditions || [],
+            emergency_contacts: p.emergencyContacts || []
+        };
     },
     async save(profile: HealthProfile) {
-        const all = storage.get<HealthProfile>(KEYS.HEALTH_PROFILES);
-        const filtered = all.filter(p => p.patient_id !== profile.patient_id);
-        storage.set(KEYS.HEALTH_PROFILES, [...filtered, profile]);
+        await fetch(`${API_BASE_URL}/api/health-data/profile`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientId: profile.patient_id,
+                age: profile.age,
+                weight: profile.weight,
+                height: profile.height,
+                bloodGroup: profile.blood_group,
+                bpSystolic: profile.bp_systolic,
+                bpDiastolic: profile.bp_diastolic,
+                sugarLevel: profile.sugar_level,
+                allergies: profile.allergies,
+                chronicConditions: profile.chronic_conditions,
+                emergencyContacts: profile.emergency_contacts
+            })
+        });
     },
 };
 
 export const healthEntryService = {
     async getAll(patientId: string): Promise<HealthEntry[]> {
-        const all = storage.get<HealthEntry>(KEYS.HEALTH_ENTRIES);
-        return all.filter(e => e.patient_id === patientId)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const res = await fetch(`${API_BASE_URL}/api/health-data/entries?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((e: any) => ({
+            id: e._id,
+            patient_id: patientId,
+            date: e.date,
+            type: e.type,
+            title: e.title,
+            description: e.description,
+            values: e.values,
+            created_at: e.createdAt
+        }));
     },
     async getByType(patientId: string, type: string): Promise<HealthEntry[]> {
-        const all = await this.getAll(patientId);
-        return all.filter(e => e.type === type);
+        const res = await fetch(`${API_BASE_URL}/api/health-data/entries?patientId=${patientId}&type=${type}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((e: any) => ({
+            id: e._id,
+            patient_id: patientId,
+            date: e.date,
+            type: e.type,
+            title: e.title,
+            description: e.description,
+            values: e.values,
+            created_at: e.createdAt
+        }));
     },
     async add(entry: HealthEntry) {
-        const all = storage.get<HealthEntry>(KEYS.HEALTH_ENTRIES);
-        storage.set(KEYS.HEALTH_ENTRIES, [...all, entry]);
+        await fetch(`${API_BASE_URL}/api/health-data/entries`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientId: entry.patient_id,
+                date: entry.date,
+                type: entry.type,
+                title: entry.title,
+                description: entry.description,
+                values: entry.values
+            })
+        });
     },
     async remove(id: string) {
-        const all = storage.get<HealthEntry>(KEYS.HEALTH_ENTRIES);
-        storage.set(KEYS.HEALTH_ENTRIES, all.filter(e => e.id !== id));
+        await fetch(`${API_BASE_URL}/api/health-data/entries/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
     },
 };
 
 export const insuranceService = {
     async getAll(patientId: string): Promise<InsuranceRecord[]> {
-        const all = storage.get<InsuranceRecord>(KEYS.INSURANCE);
-        return all.filter(r => r.patient_id === patientId);
+        const res = await fetch(`${API_BASE_URL}/api/patient-data/insurance?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((r: any) => ({
+            id: r._id,
+            patient_id: patientId,
+            provider: r.provider,
+            policy_number: r.policyNumber,
+            coverage_type: r.coverageType,
+            expiry_date: r.expiryDate,
+            premium: r.premium,
+            claims: r.claims || [],
+            created_at: r.createdAt
+        }));
     },
     async add(record: InsuranceRecord) {
-        const all = storage.get<InsuranceRecord>(KEYS.INSURANCE);
-        storage.set(KEYS.INSURANCE, [...all, record]);
+        await fetch(`${API_BASE_URL}/api/patient-data/insurance`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientId: record.patient_id,
+                provider: record.provider,
+                policyNumber: record.policy_number,
+                coverageType: record.coverage_type,
+                expiryDate: record.expiry_date,
+                premium: record.premium
+            })
+        });
     },
     async update(record: InsuranceRecord) {
-        const all = storage.get<InsuranceRecord>(KEYS.INSURANCE);
-        storage.set(KEYS.INSURANCE, all.map(r => r.id === record.id ? record : r));
+        // Simple update: Add endpoint or handle via POST upsert if we change controller.
+        // For now, let's keep it simple or implement specific PATCH if needed.
+        await this.add(record);
     },
     async remove(id: string) {
-        const all = storage.get<InsuranceRecord>(KEYS.INSURANCE);
-        storage.set(KEYS.INSURANCE, all.filter(r => r.id !== id));
+        await fetch(`${API_BASE_URL}/api/patient-data/insurance/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
     },
     async addClaim(recordId: string, claim: InsuranceRecord['claims'][0]) {
-        const all = storage.get<InsuranceRecord>(KEYS.INSURANCE);
-        storage.set(KEYS.INSURANCE, all.map(r => {
-            if (r.id === recordId) {
-                return { ...r, claims: [...r.claims, claim] };
-            }
-            return r;
-        }));
+        // Placeholder or implement nested claim support
+        console.log('Claim addition not fully implemented on backend yet', recordId, claim);
     },
 };
 
 export const familyService = {
     async getAll(parentId: string): Promise<FamilyMember[]> {
-        const all = storage.get<FamilyMember>(KEYS.FAMILY);
-        return all.filter(m => m.parent_patient_id === parentId);
+        const res = await fetch(`${API_BASE_URL}/api/patient-data/family?parentId=${parentId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((m: any) => ({
+            id: m._id,
+            parent_patient_id: parentId,
+            name: m.name,
+            relationship: m.relationship,
+            age: m.age,
+            profile_id: m.profileId
+        }));
     },
     async add(member: FamilyMember) {
-        const all = storage.get<FamilyMember>(KEYS.FAMILY);
-        storage.set(KEYS.FAMILY, [...all, member]);
+        await fetch(`${API_BASE_URL}/api/patient-data/family`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                parentId: member.parent_patient_id,
+                name: member.name,
+                relationship: member.relationship,
+                age: member.age
+            })
+        });
     },
     async remove(id: string) {
-        const all = storage.get<FamilyMember>(KEYS.FAMILY);
-        storage.set(KEYS.FAMILY, all.filter(m => m.id !== id));
+        await fetch(`${API_BASE_URL}/api/patient-data/family/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
     },
 };
 
@@ -539,15 +723,75 @@ export const secureShareService = {
 
 export const hospitalFavoriteService = {
     async getAll(patientId: string): Promise<HospitalFavorite[]> {
-        const all = storage.get<HospitalFavorite>(KEYS.HOSPITAL_FAVORITES);
-        return all.filter(h => h.patient_id === patientId);
+        const res = await fetch(`${API_BASE_URL}/api/hospitals/favorites?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((h: any) => ({
+            id: h._id,
+            patient_id: patientId,
+            name: h.name,
+            address: h.address,
+            phone: h.phone,
+            type: h.type,
+            lat: h.lat,
+            lng: h.lng
+        }));
     },
     async add(hospital: HospitalFavorite) {
-        const all = storage.get<HospitalFavorite>(KEYS.HOSPITAL_FAVORITES);
-        storage.set(KEYS.HOSPITAL_FAVORITES, [...all, hospital]);
+        await fetch(`${API_BASE_URL}/api/hospitals/favorites`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientId: hospital.patient_id,
+                name: hospital.name,
+                address: hospital.address,
+                phone: hospital.phone,
+                type: hospital.type,
+                lat: hospital.lat,
+                lng: hospital.lng
+            })
+        });
     },
     async remove(id: string) {
-        const all = storage.get<HospitalFavorite>(KEYS.HOSPITAL_FAVORITES);
-        storage.set(KEYS.HOSPITAL_FAVORITES, all.filter(h => h.id !== id));
+        await fetch(`${API_BASE_URL}/api/hospitals/favorites/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
     },
+};
+
+export const adminService = {
+    async getStats(): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/api/admin/stats`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        return res.json();
+    },
+
+    async getAllUsers(): Promise<UserProfile[]> {
+        const res = await fetch(`${API_BASE_URL}/api/admin/users`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    },
+
+    async getAllAppointments(): Promise<Appointment[]> {
+        const res = await fetch(`${API_BASE_URL}/api/admin/appointments`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    },
+
+    async getAllPrescriptions(): Promise<Prescription[]> {
+        const res = await fetch(`${API_BASE_URL}/api/admin/prescriptions`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    }
 };
