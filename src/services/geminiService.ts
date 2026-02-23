@@ -152,3 +152,43 @@ Provide actionable health insights and preventive care tips relevant to their pr
 
     return getGeminiResponse(prompt);
 }
+
+/** Generate drug alternatives for Smart Prescribing Assistant */
+export async function generateDrugAlternatives(
+    drugName: string,
+    patientCondition: string
+): Promise<Array<{ name: string; reason: string; tier: number; estimatedCopay: number }>> {
+    const prompt = `You are a clinical pharmacist AI. The patient needs an alternative to ${drugName} for the condition: ${patientCondition}.
+Suggest 2-3 clinically equivalent, generic, or preferred-tier formularly alternatives that are typically cheaper or more likely to be covered by insurance.
+Return the response STRICTLY as a JSON array of objects with the following keys:
+- name (string)
+- reason (string: brief clinical justification)
+- tier (number: typically 1 or 2)
+- estimatedCopay (number: estimated cost in dollars).
+Do not include markdown formatting like \`\`\`json.`;
+
+    try {
+        const responseText = await getGeminiResponse(prompt);
+        // Strip out any markdown code blocks if the model still includes them
+        const cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+    } catch (err) {
+        console.error('Failed to generate drug alternatives', err);
+        return [];
+    }
+}
+
+/** Generate Prior Authorization (PA) clinical justification */
+export async function generatePriorAuthorization(
+    drugName: string,
+    diagnosis: string,
+    patientProfile: any
+): Promise<string> {
+    const prompt = `You are an expert medical coder and physician assistant. Generate a strong clinical justification for a Prior Authorization (PA) request for the drug ${drugName} to treat ${diagnosis}.
+Use the following patient profile data to support the medical necessity:
+${JSON.stringify(patientProfile, null, 2)}
+
+Provide a concise, formal medical justification (2-3 paragraphs) that explains why preferred alternatives have failed or are contraindicated, and why this specific medication is medically necessary. No markdown headers.`;
+
+    return getGeminiResponse(prompt);
+}

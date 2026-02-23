@@ -561,6 +561,24 @@ export const healthProfileService = {
 };
 
 export const healthEntryService = {
+    async getAllGlobal(): Promise<HealthEntry[]> {
+        const res = await fetch(`${API_BASE_URL}/api/health-data/entries`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((e: any) => ({
+            id: e._id,
+            patient_id: e.patientId?._id || e.patientId,
+            patient: e.patientId, // Include patient object if populated
+            date: e.date,
+            type: e.type,
+            title: e.title,
+            description: e.description,
+            values: e.values,
+            created_at: e.createdAt
+        }));
+    },
     async getAll(patientId: string): Promise<HealthEntry[]> {
         const res = await fetch(`${API_BASE_URL}/api/health-data/entries?patientId=${patientId}`, {
             headers: getAuthHeaders()
@@ -608,6 +626,26 @@ export const healthEntryService = {
                 values: entry.values
             })
         });
+    },
+    async uploadMedicalRecord(file: File, patientId: string): Promise<any> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('patientId', patientId);
+
+        const res = await fetch(`${API_BASE_URL}/api/health-data/upload-record`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+            },
+            body: formData
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to upload medical record');
+        }
+
+        return res.json();
     },
     async remove(id: string) {
         await fetch(`${API_BASE_URL}/api/health-data/entries/${id}`, {

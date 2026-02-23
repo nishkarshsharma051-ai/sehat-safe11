@@ -27,6 +27,35 @@ export interface Prescription {
   created_at: string;
   category?: 'lab' | 'prescription' | 'scan' | 'discharge';
   tags?: string[];
+  insurance_status?: 'covered' | 'not-covered' | 'pa-required';
+  estimated_copay?: number;
+  pa_required?: boolean;
+}
+
+export interface InsuranceCoverage {
+  drugName: string;
+  covered: boolean;
+  tier: number;
+  copay: number;
+  paRequired: boolean;
+  alternatives?: string[];
+}
+
+export interface DrugAlternative {
+  name: string;
+  reason: string;
+  tier: number;
+  estimatedCopay: number;
+}
+
+export interface PriorAuthorization {
+  id: string;
+  patientId: string;
+  drugName: string;
+  diagnosis: string;
+  status: 'pending' | 'approved' | 'denied';
+  clinicalJustification: string;
+  submittedAt: string;
 }
 
 export interface Medicine {
@@ -210,5 +239,5 @@ export interface PlanActivity {
   title: string;
   description: string;
   frequency: string;
-  type: 'exercise' | 'diet' | 'checkup' | 'meditation';
+  type: 'exercise' | 'diet' | 'checkup' | 'meditation' | 'wellness';
 }

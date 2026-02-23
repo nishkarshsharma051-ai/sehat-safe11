@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 
 import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
 import { GlassCard } from '../ui/GlassCard';
 import { PremiumButton } from '../ui/PremiumButton';
 import { NeumorphicBadge } from '../ui/NeumorphicBadge';
-import { Brain, Activity, Clock, AlertTriangle, ChevronRight, User, Pill, Stethoscope } from 'lucide-react';
+import { Brain, Activity, Clock, AlertTriangle, ChevronRight, User, Pill, Stethoscope, Zap, FilePlus } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Appointment, Prescription, HealthProfile, HealthEntry } from '../../types';
 import { healthProfileService, healthEntryService } from '../../services/dataService';
 import { getGeminiResponse } from '../../services/geminiService';
+import { SmartPrescribingModal } from './SmartPrescribingModal';
+import MedicalRecordUploadModal from '../Patient/MedicalRecordUploadModal';
+import HealthTimeline from '../Patient/HealthTimeline';
 
 interface PatientIntelligenceHubProps {
     patients: any[];
@@ -23,6 +27,9 @@ export default function PatientIntelligenceHub({ patients, allAppointments, allP
     const [loadingData, setLoadingData] = useState(false);
     const [aiSummary, setAiSummary] = useState<string | null>(null);
     const [loadingAi, setLoadingAi] = useState(false);
+    const [isPrescribingModalOpen, setIsPrescribingModalOpen] = useState(false);
+    const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'overview' | 'records'>('overview');
 
     useEffect(() => {
         if (!selectedPatientId) return;
@@ -45,8 +52,8 @@ export default function PatientIntelligenceHub({ patients, allAppointments, allP
         setAiSummary(null); // Reset summary
     }, [selectedPatientId]);
 
-    const patientAppointments = allAppointments.filter(a => a.patient_id === selectedPatientId).sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime());
-    const patientPrescriptions = allPrescriptions.filter(p => p.patient_id === selectedPatientId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const patientAppointments = useMemo(() => allAppointments.filter(a => a.patient_id === selectedPatientId).sort((a, b) => new Date(b.appointment_date).getTime() - new Date(a.appointment_date).getTime()), [allAppointments, selectedPatientId]);
+    const patientPrescriptions = useMemo(() => allPrescriptions.filter(p => p.patient_id === selectedPatientId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), [allPrescriptions, selectedPatientId]);
 
     // Generate AI Summary
     useEffect(() => {
@@ -78,7 +85,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
             }
         };
 
-        // Add a slight delay to allow rendering before the API call blocks/slows things
         const t = setTimeout(generateAi, 500);
         return () => clearTimeout(t);
     }, [selectedPatientId, loadingData, healthProfile, patients, patientAppointments, patientPrescriptions]);
@@ -91,114 +97,126 @@ Format requirements: No markdown headers. Provide a brief objective summary para
         }
     };
 
+    const sortedPatients = useMemo(() => {
+        return [...patients].sort((a, b) => a.name.localeCompare(b.name));
+    }, [patients]);
+
     if (!selectedPatientId) {
         return (
             <div className="space-y-6 pb-12">
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-700 p-8 shadow-2xl">
-                    <div className="relative z-10 space-y-2">
-                        <div className="flex items-center gap-3 text-white">
-                            <Brain className="w-8 h-8" />
-                            <h2 className="text-3xl font-extrabold tracking-tight">Patient Intelligence Hub</h2>
-                        </div>
-                        <p className="text-indigo-100/80 max-w-xl">
-                            Select a patient to view their comprehensive clinical intelligence profile, powered by real-time analytics and AI.
-                        </p>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Patient Intelligence Hub</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Select a patient to view AI-powered clinical insights</p>
                     </div>
-                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
                 </div>
 
-                {patients.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">No patients available pending. Check appointments section.</div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {patients.map(p => (
-                            <GlassCard key={p.id} className="p-6 hover:shadow-xl transition-all cursor-pointer group" onClick={() => setSelectedPatientId(p.id)}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl group-hover:scale-110 transition-transform">
-                                        <User className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                                    </div>
-                                    <NeumorphicBadge variant={p.appointmentCount > 2 ? 'warning' : 'success'}>
-                                        {p.appointmentCount > 2 ? 'Review Needed' : 'Stable'}
-                                    </NeumorphicBadge>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sortedPatients.map((patient) => (
+                        <GlassCard
+                            key={patient.id}
+                            onClick={() => setSelectedPatientId(patient.id)}
+                            className="p-5 cursor-pointer hover:shadow-xl hover:border-indigo-500 group transition-all"
+                        >
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/20 group-hover:text-indigo-500 transition-colors">
+                                    <User className="w-6 h-6" />
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 transition-colors">{p.name || 'Unknown Patient'}</h3>
-                                <div className="text-sm text-gray-500 dark:text-gray-400 flex justify-between mt-2">
-                                    <span>Encounters: {p.appointmentCount}</span>
-                                    <span>Last: {p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : 'Never'}</span>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-gray-800 dark:text-white truncate group-hover:text-indigo-600 transition-colors uppercase">{patient.name}</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{patient.phone || 'No phone'}</p>
                                 </div>
-
-                                <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/5 flex justify-end">
-                                    <span className="flex items-center text-sm font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
-                                        View Hub <ChevronRight className="w-4 h-4 ml-1" />
-                                    </span>
-                                </div>
-                            </GlassCard>
-                        ))}
-                    </div>
-                )}
+                                <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                            </div>
+                        </GlassCard>
+                    ))}
+                </div>
             </div>
         );
     }
 
     const patient = patients.find(p => p.id === selectedPatientId);
+    const hasWarfarin = patientPrescriptions.some(p => p.medicines.some(m => m.name.toLowerCase().includes('warfarin')));
+    const hasAspirin = patientPrescriptions.some(p => p.medicines.some(m => m.name.toLowerCase().includes('aspirin')));
+    const showSlightDangerStub = healthEntries.some(e => e.type === 'surgery');
 
-    // Merge sorting timeline events
-    const timelineEvents = [
-        ...patientAppointments.map(a => ({ id: a.id, type: 'appointment', date: new Date(a.appointment_date).toLocaleDateString(), title: `Appointment: ${a.reason}`, timestamp: new Date(a.appointment_date).getTime() })),
-        ...patientPrescriptions.map(p => ({ id: p.id, type: 'prescription', date: new Date(p.created_at).toLocaleDateString(), title: 'Prescription Issued', timestamp: new Date(p.created_at).getTime() })),
-        ...healthEntries.map(e => ({ id: e.id, type: 'entry', date: new Date(e.date).toLocaleDateString(), title: e.title, timestamp: new Date(e.date).getTime() }))
-    ].sort((a, b) => b.timestamp - a.timestamp);
-
-    // Build vitals chart data from HealthEntries
-    const vitalsEntries = [...healthEntries].filter(e => e.type === 'vitals' || e.title.toLowerCase().includes('vitals') || e.values).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Mocking some baseline data if no real entries exist for graph to look good
-    const chartData = vitalsEntries.length > 2 ? vitalsEntries.map(e => ({
-        date: new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        systolic: e.values?.systolic || e.values?.bp_systolic || 0,
-        sugar: e.values?.sugar || e.values?.sugar_level || 0
-    })) : [
-        { date: 'Last Month', systolic: 130, sugar: 120 },
-        { date: 'Two Weeks', systolic: 128, sugar: 115 },
-        { date: 'Last Week', systolic: 125, sugar: 112 },
-        { date: 'Current', systolic: healthProfile?.bp_systolic || 120, sugar: healthProfile?.sugar_level || 110 },
+    const chartData = [
+        { date: '10 Feb', systolic: 128, sugar: 110 },
+        { date: '15 Feb', systolic: 132, sugar: 145 },
+        { date: '20 Feb', systolic: 125, sugar: 120 },
+        { date: 'Today', systolic: healthProfile?.bp_systolic || 125, sugar: healthProfile?.sugar_level || 120 },
     ];
 
-    // Drug Alerts Check Strip
-    const allMeds = patientPrescriptions.flatMap(p => p.medicines.map(m => m.name.toLowerCase()));
-    const hasWarfarin = allMeds.some(m => m.includes('warfarin'));
-    const hasAspirin = allMeds.some(m => m.includes('aspirin'));
-    const showSlightDangerStub = true; // Still show stub so the feature is obvious
+    const timelineEvents = [
+        ...patientAppointments.map(a => ({ id: a.id, type: 'appointment', title: a.reason, date: new Date(a.appointment_date).toLocaleDateString() })),
+        ...patientPrescriptions.map(p => ({ id: p.id, type: 'prescription', title: `Prescribed ${p.medicines.length} medicines`, date: new Date(p.created_at).toLocaleDateString() }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
     return (
-        <div className="space-y-6 pb-24">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
+        <div className="space-y-6 pb-20">
+            {/* Context Header */}
+            <div className="flex items-center justify-between mb-8 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide">
+                <div className="flex items-center space-x-4">
                     <button
                         onClick={() => setSelectedPatientId(null)}
-                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full text-gray-500 transition-colors"
                     >
                         <ChevronRight className="w-6 h-6 rotate-180" />
                     </button>
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{patient?.name || 'Unknown'}</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Clinical Profile & Intelligence</p>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white uppercase">{patient?.name}</h2>
+                            <NeumorphicBadge variant="info">Patient ID: #{selectedPatientId.slice(-4)}</NeumorphicBadge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <span>{patient?.gender || 'Unknown'}, {healthProfile?.age || 'Unknown'} years</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                            <span>{patient?.phone}</span>
+                        </div>
                     </div>
                 </div>
-                <PremiumButton className="bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
-                    <Activity className="w-4 h-4 mr-2" />
-                    Live Monitor
-                </PremiumButton>
+
+                <div className="flex items-center gap-3">
+                    <PremiumButton
+                        variant="primary"
+                        size="md"
+                        onClick={() => setIsPrescribingModalOpen(true)}
+                        className="flex items-center gap-2"
+                    >
+                        <Zap className="w-4 h-4" /> Smart Prescribe
+                    </PremiumButton>
+                    <button
+                        onClick={() => setIsRecordModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 rounded-xl hover:bg-purple-500/20 transition-all text-sm font-bold"
+                    >
+                        <FilePlus className="w-4 h-4" /> Add Record
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex gap-4 mb-6 border-b border-gray-100 dark:border-white/5 pb-px">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-gray-400'}`}
+                >
+                    Intelligence Overview
+                    {activeTab === 'overview' && <motion.div layoutId="patientTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
+                </button>
+                <button
+                    onClick={() => setActiveTab('records')}
+                    className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'records' ? 'text-indigo-600' : 'text-gray-400'}`}
+                >
+                    Full History & Records
+                    {activeTab === 'records' && <motion.div layoutId="patientTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
+                </button>
             </div>
 
             {loadingData ? (
-                <div className="flex justify-center items-center py-24">
+                <div className="flex flex-col items-center justify-center py-20">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
                 </div>
-            ) : (
+            ) : activeTab === 'overview' ? (
                 <StaggerContainer className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* AI Summary */}
                     <MotionItem className="lg:col-span-2">
                         <GlassCard className="p-6 border-indigo-200/50 dark:border-indigo-800/50 h-full">
                             <div className="flex items-center gap-3 mb-4 border-b border-gray-100 dark:border-white/5 pb-4">
@@ -223,7 +241,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                         </GlassCard>
                     </MotionItem>
 
-                    {/* Quick Vitals */}
                     <MotionItem>
                         <GlassCard className="p-6 border-emerald-200/50 dark:border-emerald-800/50 h-full flex flex-col">
                             <div className="flex items-center gap-3 mb-6">
@@ -239,18 +256,14 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Blood Pressure</p>
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{healthProfile?.bp_systolic || '-'}<span className="text-sm text-gray-400 font-normal">/{healthProfile?.bp_diastolic || '-'}</span></p>
                                     </div>
-                                    <div className="text-emerald-500 text-sm font-medium flex items-center bg-emerald-50 dark:bg-transparent px-2 py-1 rounded">
-                                        Recorded
-                                    </div>
+                                    <div className="text-emerald-500 text-sm font-medium flex items-center bg-emerald-50 dark:bg-transparent px-2 py-1 rounded">Recorded</div>
                                 </div>
-
                                 <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center">
                                     <div>
                                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Fasting Sugar</p>
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{healthProfile?.sugar_level || '-'} <span className="text-sm text-gray-400 font-normal">mg/dL</span></p>
                                     </div>
                                 </div>
-
                                 <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center">
                                     <div>
                                         <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Weight / Height</p>
@@ -261,7 +274,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                         </GlassCard>
                     </MotionItem>
 
-                    {/* Vitals Trend Chart */}
                     <MotionItem className="lg:col-span-2">
                         <GlassCard className="p-6 border-blue-200/50 dark:border-blue-800/50 h-[400px] flex flex-col">
                             <div className="flex items-center justify-between mb-6">
@@ -293,9 +305,7 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
                                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
                                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dx={-10} domain={['dataMin - 10', 'dataMax + 10']} />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                                        />
+                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
                                         <Area type="monotone" dataKey="systolic" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorSystolic)" />
                                         <Area type="monotone" dataKey="sugar" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill="url(#colorSugar)" />
                                     </AreaChart>
@@ -304,7 +314,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                         </GlassCard>
                     </MotionItem>
 
-                    {/* Clinical Timeline */}
                     <MotionItem>
                         <GlassCard className="p-6 border-purple-200/50 dark:border-purple-800/50 h-[400px] flex flex-col">
                             <div className="flex items-center gap-3 mb-6 shrink-0">
@@ -313,7 +322,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                 </div>
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Clinical Timeline</h3>
                             </div>
-
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 relative">
                                 {timelineEvents.length === 0 ? (
                                     <div className="text-gray-500 text-center py-6">No clinical events recorded yet.</div>
@@ -323,12 +331,9 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                         <div className="space-y-6">
                                             {timelineEvents.map((event) => (
                                                 <div key={event.id} className="relative pl-12">
-                                                    {/* Icon Node */}
                                                     <div className="absolute left-0 top-0 w-10 h-10 bg-white dark:bg-[#1C1C1E] border-2 border-gray-100 dark:border-gray-800 rounded-full flex items-center justify-center -ml-1 mt-1 z-10 shadow-sm">
                                                         {getTimelineIcon(event.type)}
                                                     </div>
-
-                                                    {/* Content */}
                                                     <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-100 dark:border-white/5">
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-gray-900 dark:text-white text-sm line-clamp-1 mr-2">{event.title}</h4>
@@ -344,7 +349,6 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                         </GlassCard>
                     </MotionItem>
 
-                    {/* Drug Interaction Alerts */}
                     {(hasWarfarin && hasAspirin) || showSlightDangerStub ? (
                         <MotionItem className="lg:col-span-3">
                             <GlassCard className="p-6 border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10">
@@ -365,9 +369,7 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                                     <h4 className="font-bold text-red-700 dark:text-red-400">Warfarin + Aspirin Detected</h4>
                                                     <NeumorphicBadge variant="error" className="scale-75 origin-left">High Risk</NeumorphicBadge>
                                                 </div>
-                                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                    Patient prescriptions indicate concurrent use. Increased risk of severe bleeding. Generally contraindicated.
-                                                </p>
+                                                <p className="text-sm text-gray-700 dark:text-gray-300">Patient prescriptions indicate concurrent use. Increased risk of serious bleeding.</p>
                                             </div>
                                         </div>
                                     )}
@@ -381,9 +383,7 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                                     <h4 className="font-bold text-orange-700 dark:text-orange-400">AI Safety Check Enabled</h4>
                                                     <NeumorphicBadge variant="warning" className="scale-75 origin-left">Monitoring</NeumorphicBadge>
                                                 </div>
-                                                <p className="text-sm text-gray-700 dark:text-gray-300">
-                                                    Real-time active screening for contraindications is running. No severe drug-drug interactions detected in current active prescriptions.
-                                                </p>
+                                                <p className="text-sm text-gray-700 dark:text-gray-300">Real-time screening for contraindications is running.</p>
                                             </div>
                                         </div>
                                     )}
@@ -391,9 +391,47 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                             </GlassCard>
                         </MotionItem>
                     ) : null}
-
                 </StaggerContainer>
+            ) : (
+                <MotionItem>
+                    <GlassCard className="p-1">
+                        <div className="max-h-[800px] overflow-y-auto custom-scrollbar">
+                            <HealthTimeline
+                                patientId={selectedPatientId}
+                                onEntryAdded={() => {
+                                    if (selectedPatientId) {
+                                        healthProfileService.get(selectedPatientId).then(setHealthProfile);
+                                        healthEntryService.getAll(selectedPatientId).then(setHealthEntries);
+                                    }
+                                }}
+                            />
+                        </div>
+                    </GlassCard>
+                </MotionItem>
             )}
+
+            <SmartPrescribingModal
+                isOpen={isPrescribingModalOpen}
+                onClose={() => setIsPrescribingModalOpen(false)}
+                patientName={patient?.name || ''}
+                patientProfile={healthProfile}
+            />
+
+            <MedicalRecordUploadModal
+                isOpen={isRecordModalOpen}
+                onClose={() => setIsRecordModalOpen(false)}
+                patientId={selectedPatientId}
+                onUploadComplete={() => {
+                    if (selectedPatientId) {
+                        const profile = healthProfileService.get(selectedPatientId);
+                        const entries = healthEntryService.getAll(selectedPatientId);
+                        Promise.all([profile, entries]).then(([p, e]) => {
+                            setHealthProfile(p);
+                            setHealthEntries(e);
+                        });
+                    }
+                }}
+            />
         </div>
     );
 }

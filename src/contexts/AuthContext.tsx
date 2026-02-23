@@ -35,19 +35,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | BackendUser | null>(null);
+    const [user, setUser] = useState<User | BackendUser | null>(() => {
+        const storedUser = localStorage.getItem('backend_user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
     const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token'));
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !localStorage.getItem('backend_user'));
 
     useEffect(() => {
-        // Check for backend user first
-        const storedUser = localStorage.getItem('backend_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-            setLoading(false);
-            return;
-        }
-
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser?.email) {
                 try {
@@ -79,9 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(firebaseUser);
                 }
             } else {
-                setUser(firebaseUser);
+                // If firebase confirms no user, clear local state
                 if (!firebaseUser) {
+                    setUser(null);
+                    setToken(null);
                     localStorage.removeItem('backend_user');
+                    localStorage.removeItem('auth_token');
+                } else {
+                    setUser(firebaseUser);
                 }
             }
             setLoading(false);

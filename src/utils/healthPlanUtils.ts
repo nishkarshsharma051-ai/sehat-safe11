@@ -1,4 +1,5 @@
 import { HealthProfile, HealthPlan } from '../types';
+import { getGeminiResponse } from '../services/geminiService';
 
 export const recommendHealthPlans = (profile: HealthProfile | null, healthScore: number, lang: 'en' | 'hi' = 'en'): HealthPlan[] => {
     const plans: HealthPlan[] = [];
@@ -59,7 +60,7 @@ export const recommendHealthPlans = (profile: HealthProfile | null, healthScore:
             activities: [
                 { id: 'act-7', title: t('Guided Meditation', 'निर्देशित ध्यान'), description: t('Mindfulness and breathing exercises to reduce stress.', 'तनाव कम करने के लिए माइंडफुलनेस और सांस लेने के व्यायाम।'), frequency: t('Daily', 'दैनिक'), type: 'meditation' },
                 { id: 'act-8', title: t('Probiotic Intake', 'प्रोबायोटिक सेवन'), description: t('Add Greek yogurt or fermented foods to your breakfast.', 'अपने नाश्ते में ग्रीक योगर्ट या फर्मेंटेड फूड्स शामिल करें।'), frequency: t('Daily', 'दैनिक'), type: 'diet' },
-                { id: 'act-9', title: t('Sleep Hygiene', 'नींद की स्वच्छता'), description: t('Maintain a consistent 8-hour sleep schedule.', 'लगातार 8 घंटे की नींद का शेड्यूल बनाए रखें।'), frequency: t('Daily', 'दैनिक'), type: 'wellness' as any }
+                { id: 'act-9', title: t('Sleep Hygiene', 'नींद की स्वच्छता'), description: t('Maintain a consistent 8-hour sleep schedule.', 'लगातार 8 घंटे की नींद का शेड्यूल बनाए रखें।'), frequency: t('Daily', 'दैनिक'), type: 'wellness' }
             ]
         });
     }
@@ -94,7 +95,7 @@ export const recommendHealthPlans = (profile: HealthProfile | null, healthScore:
             recommendation_reason: t('Recommended to help manage stress levels and improve mental well-being.', 'तनाव के स्तर को प्रबंधित करने और मानसिक कल्याण में सुधार करने में मदद के लिए अनुशंसित।'),
             activities: [
                 { id: 'act-14', title: t('Deep Breathing', 'गहरी सांस लेना'), description: t('5 minutes of box breathing practice.', 'बॉक्स ब्रीदिंग अभ्यास के 5 मिनट।'), frequency: t('2x Daily', 'दैनिक 2 बार'), type: 'meditation' },
-                { id: 'act-15', title: t('Digital Detox', 'डिजिटल डिटॉक्स'), description: t('No screens 1 hour before bedtime.', 'सोने से 1 घंटा पहले कोई स्क्रीन नहीं।'), frequency: t('Daily', 'दैनिक'), type: 'wellness' as any },
+                { id: 'act-15', title: t('Digital Detox', 'डिजिटल डिटॉक्स'), description: t('No screens 1 hour before bedtime.', 'सोने से 1 घंटा पहले कोई स्क्रीन नहीं।'), frequency: t('Daily', 'दैनिक'), type: 'wellness' },
                 { id: 'act-16', title: t('Herbal Tea', 'हर्बल चाय'), description: t('Chamomile or Ashwagandha tea in the evening.', 'शाम को कैमोमाइल या अश्वगंधा की चाय।'), frequency: t('Daily', 'दैनिक'), type: 'diet' }
             ]
         });
@@ -140,4 +141,69 @@ export const recommendHealthPlans = (profile: HealthProfile | null, healthScore:
     }
 
     return plans;
+};
+
+export const generateHealthPlansWithAI = async (profile: HealthProfile | null, healthScore: number, lang: 'en' | 'hi' = 'en'): Promise<HealthPlan[]> => {
+    if (!profile) return recommendHealthPlans(profile, healthScore, lang); // fallback
+
+    const languageStr = lang === 'hi' ? 'Hindi' : 'English';
+
+    try {
+        const prompt = `
+You are an expert AI Health Coach. Generate 2 highly customized, personalized health plans for the patient based on their health profile.
+        
+Patient Profile:
+Age: ${profile.age || 'Unknown'}
+Weight: ${profile.weight || 'Unknown'} kg
+Height: ${profile.height || 'Unknown'} cm
+Blood Sugar: ${profile.sugar_level || 'Unknown'} mg/dL
+Blood Pressure: ${profile.bp_systolic || '?'}/${profile.bp_diastolic || '?'} mmHg
+Allergies: ${profile.allergies?.join(', ') || 'None'}
+Chronic Conditions: ${profile.chronic_conditions?.join(', ') || 'None'}
+Overall Health Score: ${healthScore}/100
+
+Format Requirements:
+Output EXACTLY a JSON array of objects. No markdown formatting (don't use \`\`\`json), just the raw JSON array.
+Language: ${lang === 'hi' ? 'Hindi' : 'English'}
+Each object must match this interface:
+{
+  "id": "A unique string ID (e.g. plan-ai-1)",
+  "name": "Catchy Plan Name",
+  "description": "Short description of what the plan achieves",
+  "duration": "E.g., 4 Weeks or 3 Months",
+  "intensity": "Low" | "Moderate" | "High",
+  "category": "medical" | "wellness" | "fitness",
+  "recommendation_reason": "Why this plan fits their specific bio-markers",
+  "activities": [
+    {
+      "id": "Unique activity ID (e.g. act-ai-1)",
+      "title": "Activity Name",
+      "description": "Short explanation",
+      "frequency": "E.g., Daily, 3x Weekly",
+      "type": "exercise" | "diet" | "meditation" | "checkup" | "wellness"
+    }
+  ]
+}
+Ensure there are 2-3 activities per plan.
+`;
+
+        const responseText = await getGeminiResponse(prompt, [], { name: profile.id, role: 'patient', language: languageStr as 'Hindi' | 'English' });
+
+        let cleanedText = responseText.trim();
+        if (cleanedText.startsWith('\`\`\`json')) {
+            cleanedText = cleanedText.replace(/^\`\`\`json/, '').replace(/\`\`\`$/, '').trim();
+        } else if (cleanedText.startsWith('\`\`\`')) {
+            cleanedText = cleanedText.replace(/^\`\`\`/, '').replace(/\`\`\`$/, '').trim();
+        }
+
+        const data = JSON.parse(cleanedText);
+        if (Array.isArray(data) && data.length > 0 && data[0].name) {
+            const standardPlans = recommendHealthPlans(profile, healthScore, lang);
+            return [...(data as HealthPlan[]), ...standardPlans.filter(p => !data.find((d: any) => d.name === p.name))];
+        }
+    } catch (e) {
+        console.error("Failed to parse AI health plan, falling back to static", e);
+    }
+
+    return recommendHealthPlans(profile, healthScore, lang); // Fallback to hardcoded logic if AI fails
 };

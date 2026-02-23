@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LucideIcon } from 'lucide-react';
 import {
   FileText, Calendar, Bell, MessageSquare, LogOut, Sun, Moon,
-  Activity, Heart, Shield, MapPin, TrendingUp, Clock, Users, Link, LayoutDashboard, Settings, Menu, X, ChevronRight, Target
+  Activity, Heart, Shield, MapPin, TrendingUp, Clock, Users, Link, LayoutDashboard, Settings, Menu, X, ChevronRight, Target, Sparkles
 } from 'lucide-react';
 import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
 import { GlassCard } from '../ui/GlassCard';
@@ -30,6 +30,7 @@ import HealthPlans from './HealthPlans';
 import { prescriptionService, appointmentService, reminderService, healthEntryService, insuranceService, familyService, healthProfileService } from '../../services/dataService';
 import { calculateHealthScore } from '../../utils/healthScoreUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
+import MedicalRecordUploadModal from './MedicalRecordUploadModal';
 
 type ViewType =
   | 'overview' | 'prescriptions' | 'appointments' | 'reminders' | 'chat'
@@ -42,6 +43,7 @@ const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: stri
   { id: 'prescriptions', label: 'Prescriptions', icon: FileText, section: 'Core' },
   { id: 'appointments', label: 'Appointments', icon: Calendar, section: 'Core' },
   { id: 'reminders', label: 'Reminders', icon: Bell, section: 'Core' },
+  { id: 'timeline', label: 'Health Records', icon: Clock, section: 'Core' },
   { id: 'health-summary', label: 'Health Summary', icon: Heart, section: 'Core' },
   // AI-Powered
   { id: 'chat', label: 'AI Chat', icon: MessageSquare, section: 'AI-Powered', badge: 'info', badgeLabel: 'New' },
@@ -52,7 +54,6 @@ const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: stri
   { id: 'hospitals', label: 'Hospitals', icon: MapPin, section: 'Advanced' },
   { id: 'insurance', label: 'Insurance', icon: Shield, section: 'Advanced' },
   // Big Brain
-  { id: 'timeline', label: 'Timeline', icon: Clock, section: 'Big Brain' },
   { id: 'trends', label: 'Health Trends', icon: TrendingUp, section: 'Big Brain' },
   { id: 'family', label: 'Family', icon: Users, section: 'Big Brain' },
   { id: 'schemes', label: 'Scheme Matcher', icon: Shield, section: 'Big Brain', badge: 'info', badgeLabel: 'Beta' },
@@ -67,6 +68,7 @@ export default function PatientDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [stats, setStats] = useState({ prescriptions: 0, appointments: 0, reminders: 0, timeline: 0, insurance: 0, family: 0 });
   const [healthScore, setHealthScore] = useState(92);
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
 
   const loadStats = useCallback(async () => {
     const uid = user?.uid || 'anonymous';
@@ -386,13 +388,14 @@ export default function PatientDashboard() {
           <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
               { label: 'Upload Files', hindiLabel: 'फ़ाइलें अपलोड करें', icon: FileText, color: 'bg-blue-500', view: 'prescriptions' as ViewType },
+              { label: 'Add Records', hindiLabel: 'रिकॉर्ड जोड़ें', icon: Sparkles, color: 'bg-amber-500', action: () => setIsRecordModalOpen(true) },
               { label: 'AI Chat', hindiLabel: 'एआई चैट', icon: MessageSquare, color: 'bg-indigo-500', view: 'chat' as ViewType },
               { label: 'Risk Score', hindiLabel: 'जोखिम स्कोर', icon: Activity, color: 'bg-rose-500', view: 'risk-score' as ViewType },
               { label: 'Hospitals', hindiLabel: 'अस्पताल', icon: MapPin, color: 'bg-red-500', view: 'hospitals' as ViewType },
             ].map((action) => (
               <MotionItem key={action.label}>
                 <button
-                  onClick={() => setActiveView(action.view)}
+                  onClick={() => action.action ? action.action() : action.view ? setActiveView(action.view) : null}
                   className="w-full p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center space-x-3 group text-left"
                 >
                   <div className={`w-10 h-10 rounded-xl ${action.color} flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform`}>
@@ -408,6 +411,13 @@ export default function PatientDashboard() {
           </StaggerContainer>
         </GlassCard>
       </div>
+
+      <MedicalRecordUploadModal
+        isOpen={isRecordModalOpen}
+        onClose={() => setIsRecordModalOpen(false)}
+        patientId={user?.uid || ''}
+        onUploadComplete={loadStats}
+      />
     </div>
   );
 

@@ -29,52 +29,48 @@ function LoadingSpinner() {
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [role, setRole] = useState<'patient' | 'doctor' | 'admin' | null>(null);
-  const [preAuthRole, setPreAuthRole] = useState<'patient' | 'doctor' | 'admin' | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<'patient' | 'doctor' | 'admin' | null>(() => {
+    const backendUser = localStorage.getItem('backend_user');
+    if (backendUser) return JSON.parse(backendUser).role;
+    return null;
+  });
+  const [preAuthRole, setPreAuthRole] = useState<'patient' | 'doctor' | 'admin' | null>(() => {
+    return localStorage.getItem('sehat_safe_selected_role') as 'patient' | 'doctor' | 'admin' | null;
+  });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const backendUser = localStorage.getItem('backend_user');
+    if (backendUser) return JSON.parse(backendUser).role === 'admin';
+    return false;
+  });
 
   useEffect(() => {
-    // Check local storage for pre-selected role (if any)
-    const savedRole = localStorage.getItem('sehat_safe_selected_role');
-    if (savedRole && (savedRole === 'patient' || savedRole === 'doctor')) {
-      setPreAuthRole(savedRole as 'patient' | 'doctor');
-    }
-
     if (!user) {
       setIsAdmin(false);
       setRole(null);
+      // Keep preAuthRole as is from localStorage or sync it
+      const savedRole = localStorage.getItem('sehat_safe_selected_role');
+      if (savedRole) setPreAuthRole(savedRole as any);
       return;
     }
 
     const users = JSON.parse(localStorage.getItem('sehat_safe_users') || '[]');
     const existing = users.find((u: { id: string; role?: string }) => u.id === user.uid);
 
-    // Check for backend user role (Admin or Regular)
     // PRIORITY 1: Backend Role (Source of Truth)
     const userWithRole = user as { uid: string; role?: 'patient' | 'doctor' | 'admin' };
     if (userWithRole.role) {
-      if (userWithRole.role === 'admin') {
-        setIsAdmin(true);
-        if (!role) setRole('admin');
-      } else {
-        setIsAdmin(false);
-        setRole(userWithRole.role as 'patient' | 'doctor'); // Lock to backend role
-      }
+      setRole(userWithRole.role);
+      setIsAdmin(userWithRole.role === 'admin');
     }
     // PRIORITY 2: Local Storage Role (Fallback / Legacy)
     else if (existing && existing.role) {
-      if (existing.role === 'admin') {
-        setIsAdmin(true);
-        if (!role) setRole('admin');
-      } else {
-        setIsAdmin(false);
-        setRole(existing.role as 'patient' | 'doctor');
-      }
+      setRole(existing.role as any);
+      setIsAdmin(existing.role === 'admin');
     }
     // PRIORITY 3: Pre-Auth Selection (New Registration)
     else if (preAuthRole) {
-      setIsAdmin(false);
-      setRole(preAuthRole as 'patient' | 'doctor' | 'admin');
+      setRole(preAuthRole);
+      setIsAdmin(preAuthRole === 'admin');
 
       // Ensure it's saved in local storage profile if missing
       if (!existing) {
