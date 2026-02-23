@@ -123,7 +123,7 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                                     <User className="w-6 h-6" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-gray-800 dark:text-white truncate group-hover:text-indigo-600 transition-colors uppercase">{patient.name}</h3>
+                                    <h3 className="font-bold text-gray-800 dark:text-white truncate group-hover:text-indigo-600 transition-colors">{patient.name}</h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{patient.phone || 'No phone'}</p>
                                 </div>
                                 <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
@@ -165,7 +165,7 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                     </button>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white uppercase">{patient?.name}</h2>
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{patient?.name}</h2>
                             <NeumorphicBadge variant="info">Patient ID: #{selectedPatientId.slice(-4)}</NeumorphicBadge>
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -197,14 +197,14 @@ Format requirements: No markdown headers. Provide a brief objective summary para
             <div className="flex gap-4 mb-6 border-b border-gray-100 dark:border-white/5 pb-px">
                 <button
                     onClick={() => setActiveTab('overview')}
-                    className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-gray-400'}`}
+                    className={`px-6 py-3 text-sm font-semibold transition-all relative ${activeTab === 'overview' ? 'text-indigo-600' : 'text-gray-400'}`}
                 >
                     Intelligence Overview
                     {activeTab === 'overview' && <motion.div layoutId="patientTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
                 </button>
                 <button
                     onClick={() => setActiveTab('records')}
-                    className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'records' ? 'text-indigo-600' : 'text-gray-400'}`}
+                    className={`px-6 py-3 text-sm font-semibold transition-all relative ${activeTab === 'records' ? 'text-indigo-600' : 'text-gray-400'}`}
                 >
                     Full History & Records
                     {activeTab === 'records' && <motion.div layoutId="patientTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
@@ -253,20 +253,20 @@ Format requirements: No markdown headers. Provide a brief objective summary para
                             <div className="space-y-4 flex-1 flex flex-col justify-center">
                                 <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Blood Pressure</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Blood Pressure</p>
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{healthProfile?.bp_systolic || '-'}<span className="text-sm text-gray-400 font-normal">/{healthProfile?.bp_diastolic || '-'}</span></p>
                                     </div>
                                     <div className="text-emerald-500 text-sm font-medium flex items-center bg-emerald-50 dark:bg-transparent px-2 py-1 rounded">Recorded</div>
                                 </div>
                                 <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Fasting Sugar</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Fasting Sugar</p>
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white">{healthProfile?.sugar_level || '-'} <span className="text-sm text-gray-400 font-normal">mg/dL</span></p>
                                     </div>
                                 </div>
                                 <div className="bg-white/50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Weight / Height</p>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Weight / Height</p>
                                         <p className="text-xl font-bold text-gray-900 dark:text-white">{healthProfile?.weight || '-'}kg / <span className="text-sm text-gray-400 font-normal">{healthProfile?.height || '-'}cm</span></p>
                                     </div>
                                 </div>

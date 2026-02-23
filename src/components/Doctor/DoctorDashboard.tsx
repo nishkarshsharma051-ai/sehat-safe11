@@ -242,8 +242,8 @@ export default function DoctorDashboard() {
     <div className="space-y-8 pb-12">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Welcome, Dr. {profileData.name.split(' ')[0]}</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium italic">You have {upcomingAppointments.length} appointments today.</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome, Dr. {profileData.name.split(' ')[0]}</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">You have {upcomingAppointments.length} appointments today.</p>
         </div>
         <PremiumButton
           variant="primary"
@@ -261,23 +261,23 @@ export default function DoctorDashboard() {
         <GlassCard className="p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-100 dark:border-indigo-500/20">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-indigo-500 rounded-xl"><Users className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-black text-gray-900 dark:text-white">{allPatients.length}</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">{allPatients.length}</span>
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Total Patients</p>
+          <p className="text-sm font-medium text-gray-500">Total Patients</p>
         </GlassCard>
         <GlassCard className="p-6 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-100 dark:border-emerald-500/20">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-emerald-500 rounded-xl"><Calendar className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-black text-gray-900 dark:text-white">{upcomingAppointments.length}</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</span>
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Upcoming</p>
+          <p className="text-sm font-medium text-gray-500">Upcoming</p>
         </GlassCard>
         <GlassCard className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-100 dark:border-amber-500/20">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-amber-500 rounded-xl"><Activity className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-black text-gray-900 dark:text-white">{prescriptions.length}</span>
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">{prescriptions.length}</span>
           </div>
-          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">Prescriptions</p>
+          <p className="text-sm font-medium text-gray-500">Prescriptions</p>
         </GlassCard>
       </div>
 
@@ -287,7 +287,7 @@ export default function DoctorDashboard() {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Clock className="w-5 h-5 text-indigo-500" /> Recent Activity
             </h3>
-            <button onClick={() => setCurrentView('appointments')} className="text-xs font-bold text-indigo-500 uppercase tracking-widest hover:underline transition-all">View All</button>
+            <button onClick={() => setCurrentView('appointments')} className="text-xs font-bold text-indigo-500 hover:underline transition-all">View All</button>
           </div>
           <div className="space-y-4">
             {upcomingAppointments.slice(0, 4).map(apt => (
@@ -298,7 +298,7 @@ export default function DoctorDashboard() {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-gray-800 dark:text-white">{apt.patient?.full_name}</h4>
-                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {apt.reason}</p>
+                    <p className="text-xs text-gray-500 font-medium">{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {apt.reason}</p>
                   </div>
                 </div>
                 <NeumorphicBadge variant={apt.status === 'confirmed' ? 'success' : 'info'} className="scale-90">
@@ -317,18 +317,18 @@ export default function DoctorDashboard() {
           </div>
           <div className="space-y-4">
             <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-200/50 dark:border-indigo-500/20">
-              <p className="text-sm text-indigo-700 dark:text-indigo-300 leading-relaxed italic">
+              <p className="text-sm text-indigo-700 dark:text-indigo-300 leading-relaxed">
                 "Looks like 3 patients have fluctuating blood pressure today. Consider reviewing their medication adherence in the Intelligence Hub."
               </p>
             </div>
             <div className="flex gap-4">
               <GlassCard className="flex-1 p-4 text-center cursor-pointer hover:bg-white/40 transition-all border-dashed border-2 border-indigo-200 dark:border-indigo-800/50" onClick={() => setShowManualModal(true)}>
                 <PlusCircle className="w-6 h-6 mx-auto mb-2 text-indigo-500" />
-                <p className="text-xs font-bold text-gray-500 uppercase">Quick Entry</p>
+                <p className="text-xs font-bold text-gray-500">Quick Entry</p>
               </GlassCard>
               <GlassCard className="flex-1 p-4 text-center cursor-pointer hover:bg-white/40 transition-all border-dashed border-2 border-purple-200 dark:border-purple-800/50" onClick={() => setCurrentView('intelligence')}>
                 <Brain className="w-6 h-6 mx-auto mb-2 text-purple-500" />
-                <p className="text-xs font-bold text-gray-500 uppercase">Smart Audit</p>
+                <p className="text-xs font-bold text-gray-500">Smart Audit</p>
               </GlassCard>
             </div>
           </div>
@@ -354,7 +354,7 @@ export default function DoctorDashboard() {
                   {apt.patient?.full_name?.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-800 dark:text-white uppercase">{apt.patient?.full_name}</h3>
+                  <h3 className="font-bold text-gray-800 dark:text-white">{apt.patient?.full_name}</h3>
                   <p className="text-xs text-gray-500">{apt.patient?.phone}</p>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export default function DoctorDashboard() {
                 <span className="text-gray-500 flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> Time</span>
                 <span className="font-bold text-gray-800 dark:text-white">{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-black/20 p-3 rounded-xl mt-2 italic">"{apt.reason}"</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-black/20 p-3 rounded-xl mt-2">"{apt.reason}"</p>
             </div>
             <div className="mt-6 flex gap-3">
               {apt.status === 'pending' && (
@@ -404,8 +404,8 @@ export default function DoctorDashboard() {
               {(p.full_name || p.name || 'P')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-800 dark:text-white truncate uppercase">{p.full_name || p.name}</h3>
-              <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-0.5">{p.phone || 'No Contact'}</p>
+              <h3 className="font-bold text-gray-800 dark:text-white truncate">{p.full_name || p.name}</h3>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">{p.phone || 'No Contact'}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-500 transition-colors" />
           </GlassCard>
@@ -457,19 +457,19 @@ export default function DoctorDashboard() {
               return (
                 <GlassCard key={record.id} className={`p-6 hover:shadow-2xl transition-all border-t-4 ${isPres ? 'border-t-purple-500' : 'border-t-indigo-500'}`}>
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-black text-gray-900 dark:text-white uppercase text-base">{pName}</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-base">{pName}</h3>
                     <NeumorphicBadge variant={isPres ? 'info' : 'success'}>
                       {isPres ? 'Prescription' : (record.type || 'Record')}
                     </NeumorphicBadge>
                   </div>
                   <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl mb-4 min-h-[80px]">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{isPres ? 'Diagnosis' : (record.title || 'Summary')}</p>
+                    <p className="text-xs font-bold text-gray-400 tracking-tight mb-1">{isPres ? 'Diagnosis' : (record.title || 'Summary')}</p>
                     <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
                       {isPres ? (record.diagnosis || 'No recorded diagnosis') : (record.description || 'Processed medical file')}
                     </p>
                   </div>
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase">{new Date(record.created_at || record.prescription_date).toLocaleDateString()}</span>
+                    <span className="text-[10px] font-medium text-gray-400">{new Date(record.created_at || record.prescription_date).toLocaleDateString()}</span>
                     <button onClick={() => setSelectedRecord(record)} className="text-xs font-bold text-indigo-500 hover:text-indigo-600 transition-colors border-none p-0 bg-transparent">View Deep Analysis</button>
                   </div>
                 </GlassCard>
@@ -518,14 +518,14 @@ export default function DoctorDashboard() {
             <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
               <Stethoscope className="w-5 h-5" />
             </div>
-            <span className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Sehat Connect</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Sehat Connect</span>
           </div>
           <div className="px-4 py-3 bg-white/50 dark:bg-white/5 rounded-2xl border border-gray-200/50 dark:border-white/5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[10px] font-black uppercase">
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-[10px] font-bold uppercase">
               {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('') : 'D'}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-black text-gray-900 dark:text-white truncate">{profileData.name || 'Clinical Specialist'}</p>
+              <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{profileData.name || 'Clinical Specialist'}</p>
               <p className="text-[10px] text-gray-500 font-bold uppercase truncate">{profileData.specialization || 'Onboarding...'}</p>
             </div>
           </div>
@@ -534,7 +534,7 @@ export default function DoctorDashboard() {
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
           {NAV_ITEMS.map((item) => (
             <button key={item.id} onClick={() => { setCurrentView(item.id as ViewType); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${currentView === item.id ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-white/10'}`}>
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-all ${currentView === item.id ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-white/10'}`}>
               <item.icon className="w-5 h-5" />
               {item.label}
             </button>
@@ -567,8 +567,8 @@ export default function DoctorDashboard() {
               className="bg-white dark:bg-[#1C1C1E] rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10">
               <div className="p-8 bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-between">
                 <div className="text-white">
-                  <h3 className="text-2xl font-black italic">Clinical Analysis</h3>
-                  <p className="text-white/70 text-sm font-bold uppercase tracking-widest mt-1">{selectedRecord.recordType === 'prescription' ? 'Digital Prescription' : 'Medical File'}</p>
+                  <h3 className="text-2xl font-bold">Clinical Analysis</h3>
+                  <p className="text-white/70 text-xs font-bold uppercase tracking-wide mt-1">{selectedRecord.recordType === 'prescription' ? 'Digital Prescription' : 'Medical File'}</p>
                 </div>
                 <button onClick={() => setSelectedRecord(null)} className="p-3 bg-white/20 hover:bg-white/30 rounded-2xl text-white transition-all"><X className="w-6 h-6" /></button>
               </div>
@@ -576,13 +576,13 @@ export default function DoctorDashboard() {
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center text-3xl">🗂️</div>
                   <div>
-                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Patient Identity</p>
-                    <h4 className="text-xl font-bold text-gray-900 dark:text-white uppercase">{selectedRecord.patient?.full_name || selectedRecord.patient?.name || selectedRecord.patientId?.name || 'Assigned Patient'}</h4>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Patient Identity</p>
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white">{selectedRecord.patient?.full_name || selectedRecord.patient?.name || selectedRecord.patientId?.name || 'Assigned Patient'}</h4>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-xs font-black text-indigo-500 uppercase tracking-widest">AI Digitized Insights</p>
+                  <p className="text-xs font-bold text-indigo-500 uppercase tracking-wide">AI Digitized Insights</p>
                   <div className="p-6 bg-indigo-500/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20">
                     <p className="text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
                       {selectedRecord.ai_summary || selectedRecord.description || 'Our clinical AI engine has processed this document. No anomalies detected.'}
@@ -593,7 +593,7 @@ export default function DoctorDashboard() {
                 {/* Download PDF button if exists */}
                 {(selectedRecord as any).pdfUrl && (
                   <a href={`${API_BASE_URL}${(selectedRecord as any).pdfUrl}`} target="_blank" rel="noreferrer"
-                    className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 dark:bg-white text-white dark:text-black rounded-2xl font-black text-sm hover:opacity-90 transition-all uppercase tracking-widest">
+                    className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 dark:bg-white text-white dark:text-black rounded-2xl font-bold text-sm hover:opacity-90 transition-all uppercase tracking-wide">
                     <Download className="w-5 h-5" /> View Original Document
                   </a>
                 )}
@@ -616,7 +616,7 @@ export default function DoctorDashboard() {
       >
         {!uploadPatientId && (
           <div className="mb-8 p-6 bg-indigo-500/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20">
-            <label className="block text-xs font-black text-indigo-500 uppercase tracking-widest mb-4">Assign Extraction to Patient</label>
+            <label className="block text-xs font-bold text-indigo-500 uppercase tracking-wide mb-4">Assign Extraction to Patient</label>
             <select value={uploadPatientId} onChange={e => setUploadPatientId(e.target.value)}
               className="w-full p-4 rounded-2xl bg-white dark:bg-black border border-indigo-100 dark:border-white/10 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-bold">
               <option value="">-- Choose Patient for AI Processing --</option>
@@ -637,7 +637,7 @@ export default function DoctorDashboard() {
               <div className="p-8 bg-indigo-600 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-white">
                   <Brain className="w-8 h-8" />
-                  <h3 className="text-2xl font-black italic">Daily Medical Briefing</h3>
+                  <h3 className="text-2xl font-bold">Daily Medical Briefing</h3>
                 </div>
                 <button onClick={() => setShowAiModal(false)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full text-white"><X className="w-6 h-6" /></button>
               </div>
@@ -645,7 +645,7 @@ export default function DoctorDashboard() {
                 {isAiLoading ? (
                   <div className="flex flex-col items-center justify-center py-20 space-y-6">
                     <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-indigo-500 font-black uppercase tracking-widest animate-pulse">Running Scheduling Audit...</p>
+                    <p className="text-indigo-500 font-bold uppercase tracking-wide animate-pulse">Running Scheduling Audit...</p>
                   </div>
                 ) : (
                   <div className="prose prose-indigo dark:prose-invert max-w-none">
@@ -665,8 +665,8 @@ export default function DoctorDashboard() {
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
               className="bg-white dark:bg-[#1C1C1E] rounded-[3rem] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10">
               <div className="flex border-b border-gray-100 dark:border-white/10 p-2">
-                <button onClick={() => setActiveTab('register')} className={`flex-1 p-4 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${activeTab === 'register' ? 'bg-indigo-500 text-white' : 'text-gray-400'}`}>1. Registry</button>
-                <button onClick={() => setActiveTab('book')} className={`flex-1 p-4 text-xs font-black uppercase tracking-widest rounded-2xl transition-all ${activeTab === 'book' ? 'bg-indigo-500 text-white' : 'text-gray-400'}`}>2. Booking</button>
+                <button onClick={() => setActiveTab('register')} className={`flex-1 p-4 text-xs font-bold uppercase tracking-wide rounded-2xl transition-all ${activeTab === 'register' ? 'bg-indigo-500 text-white' : 'text-gray-400'}`}>1. Registry</button>
+                <button onClick={() => setActiveTab('book')} className={`flex-1 p-4 text-xs font-bold uppercase tracking-wide rounded-2xl transition-all ${activeTab === 'book' ? 'bg-indigo-500 text-white' : 'text-gray-400'}`}>2. Booking</button>
                 <button onClick={() => setShowManualModal(false)} className="p-4 text-gray-400"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-8">
@@ -680,8 +680,8 @@ export default function DoctorDashboard() {
                         <option value="female">Female</option>
                       </select>
                     </div>
-                    <input required placeholder="PHONE NUMBER" value={manualPatient.phone} onChange={e => setManualPatient({ ...manualPatient, phone: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-bold uppercase" />
-                    <PremiumButton type="submit" className="w-full py-5 rounded-[2rem] shadow-2xl shadow-indigo-500/30">REGISTER NEW PATIENT</PremiumButton>
+                    <input required placeholder="PHONE NUMBER" value={manualPatient.phone} onChange={e => setManualPatient({ ...manualPatient, phone: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-medium uppercase tracking-wide" />
+                    <PremiumButton type="submit" className="w-full py-5 rounded-[2rem] shadow-2xl shadow-indigo-500/30">Register New Patient</PremiumButton>
                   </form>
                 ) : (
                   <form onSubmit={handleManualBook} className="space-y-6">
@@ -693,8 +693,8 @@ export default function DoctorDashboard() {
                       <input required type="date" value={manualAppointment.date} onChange={e => setManualAppointment({ ...manualAppointment, date: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-bold" />
                       <input required type="time" value={manualAppointment.time} onChange={e => setManualAppointment({ ...manualAppointment, time: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-bold" />
                     </div>
-                    <input required placeholder="REASON FOR VISIT" value={manualAppointment.reason} onChange={e => setManualAppointment({ ...manualAppointment, reason: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-bold uppercase" />
-                    <PremiumButton type="submit" className="w-full py-5 rounded-[2rem] shadow-2xl shadow-indigo-500/30">CONFIRM APPOINTMENT</PremiumButton>
+                    <input required placeholder="REASON FOR VISIT" value={manualAppointment.reason} onChange={e => setManualAppointment({ ...manualAppointment, reason: e.target.value })} className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-black border-none font-medium uppercase tracking-wide" />
+                    <PremiumButton type="submit" className="w-full py-5 rounded-[2rem] shadow-2xl shadow-indigo-500/30">Confirm Appointment</PremiumButton>
                   </form>
                 )}
               </div>
@@ -711,8 +711,8 @@ export default function DoctorDashboard() {
               className="bg-white dark:bg-[#1C1C1E] rounded-[3.5rem] p-10 w-full max-w-2xl shadow-2xl border border-gray-200 dark:border-white/10">
               <div className="text-center space-y-4 mb-10">
                 <div className="w-20 h-20 bg-emerald-500 rounded-3xl mx-auto flex items-center justify-center text-white text-3xl shadow-2xl shadow-emerald-500/40">🩺</div>
-                <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Physician Onboarding</h2>
-                <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Verify your identity & clinical specialty</p>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Physician Onboarding</h2>
+                <p className="text-gray-500 font-medium text-xs">Verify your identity & clinical specialty</p>
               </div>
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
@@ -721,8 +721,8 @@ export default function DoctorDashboard() {
                   <input required placeholder="HOSPITAL NAME" value={regData.hospitalName} onChange={e => setRegData({ ...regData, hospitalName: e.target.value })} className="w-full p-5 rounded-3xl bg-gray-50 dark:bg-black font-bold uppercase" />
                   <input required type="number" placeholder="EXP (YEARS)" value={regData.experience || ''} onChange={e => setRegData({ ...regData, experience: parseInt(e.target.value) || 0 })} className="w-full p-5 rounded-3xl bg-gray-50 dark:bg-black font-bold uppercase" />
                 </div>
-                <input required placeholder="AVAILABILITY (e.g. MON-FRI)" value={regData.availability} onChange={e => setRegData({ ...regData, availability: e.target.value })} className="w-full p-5 rounded-3xl bg-gray-50 dark:bg-black font-bold uppercase" />
-                <PremiumButton type="submit" isLoading={isSubmittingProfile} className="w-full py-6 rounded-full text-lg shadow-2xl shadow-emerald-500/30">FINALIZE CLINICAL PROFILE</PremiumButton>
+                <input required placeholder="AVAILABILITY (e.g. MON-FRI)" value={regData.availability} onChange={e => setRegData({ ...regData, availability: e.target.value })} className="w-full p-5 rounded-3xl bg-gray-50 dark:bg-black font-medium uppercase tracking-wide" />
+                <PremiumButton type="submit" isLoading={isSubmittingProfile} className="w-full py-6 rounded-full text-lg shadow-2xl shadow-emerald-500/30">Finalize Clinical Profile</PremiumButton>
               </form>
             </motion.div>
           </div>

@@ -156,32 +156,32 @@ export function SmartPrescribingModal({ isOpen, onClose, patientName, patientPro
                                     <GlassCard className="p-6 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700">
                                         <div className="flex items-start justify-between mb-6">
                                             <div>
-                                                <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+                                                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                                                     {coverageInfo.drugName}
                                                 </h3>
                                                 <div className="flex items-center gap-2 mt-2">
                                                     {coverageInfo.covered ? (
-                                                        <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                                                        <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wide rounded-full flex items-center gap-1">
                                                             <CheckCircle2 className="w-3.5 h-3.5" /> Covered
                                                         </span>
                                                     ) : (
-                                                        <span className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                                                        <span className="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[10px] font-bold uppercase tracking-wide rounded-full flex items-center gap-1">
                                                             <X className="w-3.5 h-3.5" /> Not Covered
                                                         </span>
                                                     )}
-                                                    <span className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider rounded-full">
+                                                    <span className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wide rounded-full">
                                                         Tier {coverageInfo.tier}
                                                     </span>
                                                     {coverageInfo.paRequired && (
-                                                        <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider rounded-full flex items-center gap-1">
+                                                        <span className="px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wide rounded-full flex items-center gap-1">
                                                             <AlertCircle className="w-3.5 h-3.5" /> PA Required
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Est. Copay</p>
-                                                <p className="text-3xl font-black text-slate-900 dark:text-white">${coverageInfo.copay}</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Est. Copay</p>
+                                                <p className="text-2xl font-bold text-slate-900 dark:text-white">${coverageInfo.copay}</p>
                                             </div>
                                         </div>
 
@@ -255,11 +255,11 @@ export function SmartPrescribingModal({ isOpen, onClose, patientName, patientPro
                                                     <div>
                                                         <h4 className="text-lg font-bold text-slate-900 dark:text-white">{alt.name}</h4>
                                                         <div className="flex items-center gap-2 mt-1">
-                                                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-md">Tier {alt.tier}</span>
+                                                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wide rounded-md">Tier {alt.tier}</span>
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-2xl font-black text-emerald-500">${alt.estimatedCopay}</p>
+                                                        <p className="text-xl font-bold text-emerald-500">${alt.estimatedCopay}</p>
                                                     </div>
                                                 </div>
                                                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">{alt.reason}</p>
@@ -321,7 +321,7 @@ export function SmartPrescribingModal({ isOpen, onClose, patientName, patientPro
                                     <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Shield className="w-8 h-8 text-indigo-500" />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white">Ready to Sign</h3>
+                                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Ready to Sign</h3>
                                     <p className="text-slate-500 dark:text-slate-400 mt-2">Please confirm the prescription details below.</p>
                                 </div>
 
@@ -340,7 +340,7 @@ export function SmartPrescribingModal({ isOpen, onClose, patientName, patientPro
                                     </div>
                                     <div className="flex justify-between pt-2">
                                         <span className="text-slate-500 dark:text-slate-400 font-bold">Estimated Patient Cost</span>
-                                        <span className="text-emerald-500 font-black text-xl">
+                                        <span className="text-emerald-500 font-bold text-xl">
                                             ${selectedDrug === coverageInfo?.drugName ? coverageInfo.copay : alternatives.find(a => a.name === selectedDrug)?.estimatedCopay || '0'}
                                         </span>
                                     </div>
