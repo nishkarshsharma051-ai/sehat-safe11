@@ -303,6 +303,7 @@ export const getPrescriptions = async (req: Request, res: Response) => {
         res.json(prescriptions);
     } catch (error) {
         console.error('Error fetching prescriptions:', error);
+        console.error('Failed query:', JSON.stringify(req.query));
         res.status(500).json({ error: 'Failed to fetch prescriptions' });
     }
 };

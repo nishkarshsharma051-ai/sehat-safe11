@@ -3,34 +3,29 @@ import { Request, Response } from 'express';
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 
+const resolveUserId = async (id: string) => {
+    if (mongoose.Types.ObjectId.isValid(id)) return id;
+    const user = await User.findOne({ firebaseUid: id });
+    return user ? user._id : null;
+};
+
 export const getAppointments = async (req: Request, res: Response) => {
     try {
         const { userId, role } = req.query;
-        let query = {};
+        let query: any = {};
 
-        if (role === 'patient' && userId) {
-            // Check if userId is a valid ObjectId, if not, it's likely a Firebase UID
-            if (mongoose.Types.ObjectId.isValid(userId as string)) {
-                query = { patientId: userId };
-            } else {
-                // Find user by firebaseUid
-                const user = await User.findOne({ firebaseUid: userId });
-                if (user) {
-                    query = { patientId: user._id };
-                } else {
-                    return res.json({ appointments: [] }); // User not found in DB yet
-                }
+        if (userId && role) {
+            const resolvedId = await resolveUserId(userId as string);
+
+            if (!resolvedId) {
+                console.warn(`[Appointments] Could not resolve userId: ${userId} for role: ${role}`);
+                return res.json({ appointments: [] });
             }
-        } else if (role === 'doctor' && userId) {
-            if (mongoose.Types.ObjectId.isValid(userId as string)) {
-                query = { doctorId: userId };
-            } else {
-                const user = await User.findOne({ firebaseUid: userId });
-                if (user) {
-                    query = { doctorId: user._id };
-                } else {
-                    return res.json({ appointments: [] });
-                }
+
+            if (role === 'patient') {
+                query = { patientId: resolvedId };
+            } else if (role === 'doctor') {
+                query = { doctorId: resolvedId };
             }
         }
 
@@ -42,6 +37,8 @@ export const getAppointments = async (req: Request, res: Response) => {
         res.json({ appointments });
     } catch (error) {
         console.error('Error fetching appointments:', error);
+        // Log query to help debug CastErrors
+        console.error('Failed query:', JSON.stringify(req.query));
         res.status(500).json({ error: 'Failed to fetch appointments' });
     }
 };
