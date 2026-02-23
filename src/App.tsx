@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/Layout/PageTransition';
@@ -126,6 +127,7 @@ function AppContent() {
       <PageTransition key="admin-dashboard">
         <Suspense fallback={<LoadingSpinner />}>
           <AdminDashboard />
+          <EmergencySOS />
           {isAdmin && (
             <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />
           )}
@@ -165,9 +167,11 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AnimatePresence mode="wait">
-          <AppContent />
-        </AnimatePresence>
+        <LanguageProvider>
+          <AnimatePresence mode="wait">
+            <AppContent />
+          </AnimatePresence>
+        </LanguageProvider>
       </AuthProvider>
     </ThemeProvider>
   );

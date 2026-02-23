@@ -1,4 +1,4 @@
-import { Shield, Stethoscope, User as UserIcon } from 'lucide-react';
+import { Shield, Stethoscope, User as UserIcon, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ViewSwitcherProps {
@@ -7,10 +7,10 @@ interface ViewSwitcherProps {
 }
 
 export default function ViewSwitcher({ currentRole, onRoleChange }: ViewSwitcherProps) {
-    const views = [
-        { id: 'admin' as const, label: 'Admin', icon: Shield, color: 'text-purple-600', bg: 'bg-purple-100' },
-        { id: 'doctor' as const, label: 'Doctor', icon: Stethoscope, color: 'text-blue-600', bg: 'bg-blue-100' },
-        { id: 'patient' as const, label: 'Patient', icon: UserIcon, color: 'text-green-600', bg: 'bg-green-100' },
+    const views: { id: 'admin' | 'doctor' | 'patient'; label: string; icon: LucideIcon; color: string; bg: string }[] = [
+        { id: 'admin', label: 'Admin', icon: Shield, color: 'text-purple-600', bg: 'bg-purple-100' },
+        { id: 'doctor', label: 'Doctor', icon: Stethoscope, color: 'text-blue-600', bg: 'bg-blue-100' },
+        { id: 'patient', label: 'Patient', icon: UserIcon, color: 'text-green-600', bg: 'bg-green-100' },
     ];
 
     return (
@@ -18,7 +18,7 @@ export default function ViewSwitcher({ currentRole, onRoleChange }: ViewSwitcher
             <motion.div
                 initial={{ y: 100, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="glass-card p-2 flex items-center space-x-2 shadow-2xl border border-white/40"
+                className="bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl p-2 flex items-center space-x-2 shadow-2xl border border-gray-200/50 dark:border-white/10 rounded-2xl"
             >
                 {views.map((view) => {
                     const Icon = view.icon;
@@ -29,8 +29,8 @@ export default function ViewSwitcher({ currentRole, onRoleChange }: ViewSwitcher
                             key={view.id}
                             onClick={() => onRoleChange(view.id)}
                             className={`relative flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 ${isActive
-                                    ? 'bg-white shadow-md'
-                                    : 'hover:bg-white/50 text-gray-500'
+                                ? 'bg-white shadow-md'
+                                : 'hover:bg-white/50 text-gray-500'
                                 }`}
                         >
                             <div className={`p-1.5 rounded-lg ${isActive ? view.bg : 'bg-transparent'}`}>

@@ -49,9 +49,11 @@ app.use('/api/patient-data', patientDataRoutes);
 
 import patientRoutes from './routes/patient.routes';
 import adminRoutes from './routes/admin.routes';
+import schemeRoutes from './routes/schemeRoutes';
 
 app.use('/api/patients', patientRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/schemes', schemeRoutes);
 
 
 app.listen(port, () => {

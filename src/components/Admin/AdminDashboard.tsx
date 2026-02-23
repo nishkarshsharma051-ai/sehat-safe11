@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Users, FileText, Calendar, Activity, Download, Eye, Shield } from 'lucide-react';
-import Navbar from '../Layout/Navbar';
+import { Users, FileText, Calendar, Download, Eye, Shield, Menu, X, ChevronRight, LogOut, LayoutDashboard, Clock, Sun, Moon, LucideIcon } from 'lucide-react';
 import { UserProfile, Appointment, Prescription } from '../../types';
 import { adminService } from '../../services/dataService';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { GlassCard } from '../ui/GlassCard';
+import { PremiumButton } from '../ui/PremiumButton';
+import { NeumorphicBadge } from '../ui/NeumorphicBadge';
+import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
+import { AnimatePresence, motion } from 'framer-motion';
+
+type ViewType = 'overview' | 'users' | 'appointments' | 'prescriptions';
 
 export default function AdminDashboard() {
-  const [currentView, setCurrentView] = useState('overview');
+  const { logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+  const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -38,11 +49,12 @@ export default function AdminDashboard() {
       setStats(fetchedStats);
 
       // Map users (Backend: _id, name -> FE: id, full_name)
-      setUsers(fetchedUsers.map((u: any) => ({
+      setUsers(fetchedUsers.map((u: any): UserProfile => ({
         ...u,
         id: u._id,
         full_name: u.name,
-        created_at: u.createdAt
+        created_at: u.createdAt,
+        role: u.role || 'patient'
       })));
 
       setAppointments(fetchedAppointments);
@@ -60,365 +72,309 @@ export default function AdminDashboard() {
     return user ? user.full_name : 'Unknown Patient';
   };
 
-  const menuItems = [
-    { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'appointments', label: 'Appointments', icon: Calendar },
-    { id: 'prescriptions', label: 'Prescriptions', icon: FileText },
+  const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: string; badge?: string; badgeLabel?: string }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'users', label: 'User Management', icon: Users, section: 'Management' },
+    { id: 'appointments', label: 'Appointments', icon: Calendar, section: 'Records' },
+    { id: 'prescriptions', label: 'Prescriptions', icon: FileText, section: 'Records' },
   ];
 
-  // Stats are now managed via state from fetchedStats
+  const renderView = () => (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={currentView}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.2 }}
+        className="h-full"
+      >
+        {(() => {
+          switch (currentView) {
+            case 'users': return renderUsers();
+            case 'appointments': return renderAppointments();
+            case 'prescriptions': return renderPrescriptions();
+            default: return renderOverview();
+          }
+        })()}
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  const renderOverview = () => (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3 tracking-tight">
+          Admin Overview
+          <NeumorphicBadge variant="info" className="text-xs py-0.5">Control Center</NeumorphicBadge>
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400 text-lg">Platform statistics at a glance</p>
+      </div>
+
+      <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[
+          { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: 'Patients', value: stats.patients, icon: Users, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: 'Doctors', value: stats.doctors, icon: Users, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+          { label: 'Total Appointments', value: stats.totalAppointments, icon: Calendar, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: 'Pending Appts', value: stats.pendingAppointments, icon: Clock, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+          { label: 'Prescriptions', value: stats.totalPrescriptions, icon: FileText, color: 'text-rose-500', bg: 'bg-rose-500/10' },
+        ].map((stat) => (
+          <MotionItem key={stat.label}>
+            <GlassCard className="p-6 flex flex-col justify-between h-40 group relative overflow-hidden">
+              <div className="flex justify-between items-start">
+                <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color}`}>
+                  <stat.icon className="w-6 h-6" />
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 transition-colors" />
+              </div>
+              <div>
+                <p className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
+                <p className="text-sm text-gray-500 font-medium uppercase tracking-wider mt-1">{stat.label}</p>
+              </div>
+            </GlassCard>
+          </MotionItem>
+        ))}
+      </StaggerContainer>
+    </div>
+  );
+
+  const renderUsers = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">User Management</h2>
+        <PremiumButton variant="secondary" size="sm" icon={<Download className="w-4 h-4" />}>
+          Export Users
+        </PremiumButton>
+      </div>
+
+      <GlassCard className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Phone</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Specialization</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Joined</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+              {users.map((user: UserProfile) => (
+                <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mr-3 font-bold text-xs">
+                        {user.full_name?.charAt(0)}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">{user.full_name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <NeumorphicBadge variant={user.role === 'admin' ? 'error' : user.role === 'doctor' ? 'info' : 'success'}>
+                      {user.role}
+                    </NeumorphicBadge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{user.phone || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{user.specialization || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </GlassCard>
+    </div>
+  );
+
+  const renderAppointments = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-white">All Appointments</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {appointments.map((apt: Appointment) => (
+          <GlassCard key={apt.id} className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-tight">Patient</p>
+                <h3 className="font-bold text-gray-800 dark:text-white">{apt.patient?.full_name || getPatientName(apt.patient_id)}</h3>
+                <p className="text-sm text-gray-500 flex items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+                  Dr. {apt.doctor?.full_name}
+                </p>
+              </div>
+              <NeumorphicBadge variant={apt.status === 'confirmed' ? 'success' : apt.status === 'pending' ? 'warning' : 'neutral'}>
+                {apt.status}
+              </NeumorphicBadge>
+            </div>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-white/5 text-sm">
+              <div>
+                <p className="text-gray-400 text-xs mb-1">Date & Time</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300">{new Date(apt.appointment_date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs mb-1">Reason</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300 truncate">{apt.reason}</p>
+              </div>
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderPrescriptions = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Prescription Records</h2>
+      <GlassCard className="p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+              <tr>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Doctor</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Meds</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+              {prescriptions.map((p: Prescription) => (
+                <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{new Date(p.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">{getPatientName(p.patient_id)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{p.doctor_name || 'Uploaded'}</td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+                      {p.medicines?.length || 0} ITEMS
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end space-x-2">
+                      <a href={p.file_url} target="_blank" rel="noreferrer" className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                        <Eye className="w-4 h-4" />
+                      </a>
+                      <a href={p.file_url} download className="p-2 text-gray-400 hover:bg-gray-50 dark:hover:bg-white/10 rounded-lg transition-colors">
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </GlassCard>
+    </div>
+  );
+
+  let lastSection = '';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <Navbar />
+    <div className="flex h-screen bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
+      {/* Mobile Header */}
+      <div className="md:hidden fixed top-0 left-0 right-0 p-4 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-white/10 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+            <Shield className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-bold text-gray-900 dark:text-white">Admin Hub</span>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
 
-      <div className="flex">
-        <aside className="w-64 min-h-screen glass-sidebar p-6 hidden md:block">
-          <nav className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${currentView === item.id
-                    ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-white/50'
-                    }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <main className="flex-1 p-8 overflow-x-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      {/* Sidebar */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-72 bg-gray-100/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-white/10
+        transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out
+        flex flex-col
+      `}>
+        <div className="p-6 pb-2">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
             </div>
-          ) : error ? (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="glass-card p-8 text-center max-w-md">
-                <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Access Denied</h3>
-                <p className="text-gray-600 mb-6">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
-                >
-                  Retry
-                </button>
-              </div>
+            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Admin Hub</span>
+          </div>
+
+          <div className="mb-4">
+            <div className="px-3 py-1.5 bg-gray-200/50 dark:bg-white/10 rounded-lg flex items-center space-x-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Admin Mode Active</span>
             </div>
-          ) : currentView === 'overview' && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800">Admin Dashboard</h2>
+          </div>
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Total Users</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">{stats.totalUsers}</p>
-                    </div>
-                    <div className="bg-blue-100 p-3 rounded-xl">
-                      <Users className="w-6 h-6 text-blue-600" />
-                    </div>
-                  </div>
-                </div>
+        <nav className="flex-1 overflow-y-auto px-4 space-y-0.5 scrollbar-hide">
+          {NAV_ITEMS.map((item) => {
+            const isSection = item.section && item.section !== lastSection;
+            if (isSection) lastSection = item.section!;
 
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Patients</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">{stats.patients}</p>
-                    </div>
-                    <div className="bg-green-100 p-3 rounded-xl">
-                      <Users className="w-6 h-6 text-green-600" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Doctors</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">{stats.doctors}</p>
-                    </div>
-                    <div className="bg-purple-100 p-3 rounded-xl">
-                      <Users className="w-6 h-6 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Total Appointments</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">
-                        {stats.totalAppointments}
-                      </p>
-                    </div>
-                    <div className="bg-yellow-100 p-3 rounded-xl">
-                      <Calendar className="w-6 h-6 text-yellow-600" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Pending Appointments</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">
-                        {stats.pendingAppointments}
-                      </p>
-                    </div>
-                    <div className="bg-orange-100 p-3 rounded-xl">
-                      <Calendar className="w-6 h-6 text-orange-600" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-600 text-sm">Total Prescriptions</p>
-                      <p className="text-3xl font-bold text-gray-800 mt-2">
-                        {stats.totalPrescriptions}
-                      </p>
-                    </div>
-                    <div className="bg-red-100 p-3 rounded-xl">
-                      <FileText className="w-6 h-6 text-red-600" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'users' && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800">User Management</h2>
-
-              <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-white/50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                          Name
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                          Role
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                          Phone
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                          Specialization
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">
-                          Joined
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {users.map((user) => (
-                        <tr key={user.id} className="hover:bg-white/30 transition-colors">
-                          <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                            {user.full_name}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${user.role === 'admin' // Fixed quote escaping
-                                ? 'bg-red-100 text-red-700'
-                                : user.role === 'doctor' // Fixed quote escaping
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-green-100 text-green-700'
-                                }`}
-                            >
-                              {user.role.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {user.phone || '-'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {user.specialization || '-'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                      {users.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                            No users found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'appointments' && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-800">All Appointments</h2>
-
-              <div className="space-y-4">
-                {appointments.map((apt) => (
-                  <div
-                    key={apt.id}
-                    className="glass-card p-6 hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold text-gray-800">
-                          Patient: {apt.patient?.full_name || getPatientName(apt.patient_id)}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Doctor: Dr. {apt.doctor?.full_name}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${apt.status === 'confirmed'
-                          ? 'bg-green-100 text-green-700'
-                          : apt.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : apt.status === 'completed'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                      >
-                        {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">Date & Time:</p>
-                        <p className="text-gray-800 font-medium">
-                          {new Date(apt.appointment_date).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">Reason:</p>
-                        <p className="text-gray-800">{apt.reason}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {appointments.length === 0 && (
-                  <div className="glass-card p-8 text-center text-gray-500">
-                    No appointments found.
+            return (
+              <div key={item.id}>
+                {isSection && (
+                  <div className="px-3 mt-6 mb-2 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    {item.section}
                   </div>
                 )}
+                <button
+                  onClick={() => {
+                    setCurrentView(item.id);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center justify-between px-3 py-2 rounded-lg text-[15px] font-medium transition-all duration-200
+                    ${currentView === item.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-white/10'
+                    }
+                  `}
+                >
+                  <div className="flex items-center space-x-3">
+                    <item.icon className={`w-[18px] h-[18px] ${currentView === item.id ? 'opacity-100' : 'opacity-70'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                </button>
               </div>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-200/50 dark:border-white/10 space-y-2">
+          <button onClick={toggleTheme} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-white/10 transition-colors text-sm font-medium">
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            <span>{isDark ? 'Light' : 'Dark'} Mode</span>
+          </button>
+          <button onClick={logout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium">
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 md:ml-72 h-screen overflow-y-auto pt-20 md:pt-6 px-4 md:px-8 pb-8 scroll-smooth">
+        <div className="max-w-6xl mx-auto">
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-          )}
-
-          {currentView === 'prescriptions' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-bold text-gray-800">Prescription Records</h2>
-                <div className="flex space-x-2">
-                  {/* Placeholder for future export/filter actions */}
-                </div>
-              </div>
-
-              <div className="glass-card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-white/50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Date</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Patient</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Doctor</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Diagnosis</th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Medicines</th>
-                        <th className="px-6 py-4 text-right text-sm font-medium text-gray-700">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {prescriptions.map((p) => {
-                        const patientName = getPatientName(p.patient_id);
-                        return (
-                          <tr key={p.id} className="hover:bg-white/30 transition-colors">
-                            <td className="px-6 py-4 text-sm text-gray-600">
-                              {new Date(p.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-3">
-                                  <span className="text-xs font-bold">
-                                    {patientName.charAt(0)}
-                                  </span>
-                                </div>
-                                <span className="text-sm font-medium text-gray-800">
-                                  {patientName}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
-                              {p.doctor_name || 'Uploaded Record'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-800">
-                              {p.diagnosis || <span className="text-gray-400 italic">No diagnosis</span>}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                {p.medicines?.length || 0} meds
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end space-x-2">
-                                <a
-                                  href={p.file_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="View Prescription"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </a>
-                                <a
-                                  href={p.file_url}
-                                  download
-                                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                  title="Download"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-
-                      {prescriptions.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                            <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                            <p>No prescription records found.</p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
+          ) : error ? (
+            <GlassCard className="max-w-md mx-auto mt-20 text-center p-8">
+              <Shield className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Access Denied</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+              <PremiumButton onClick={() => window.location.reload()} variant="primary" className="w-full">
+                Retry Access
+              </PremiumButton>
+            </GlassCard>
+          ) : renderView()}
+        </div>
+      </main>
     </div>
   );
 }

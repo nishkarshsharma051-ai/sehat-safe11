@@ -3,17 +3,20 @@ import { Clock, Plus, Trash2, FileText, Activity, Scissors, ClipboardList, Heart
 import { useAuth } from '../../contexts/AuthContext';
 import { HealthEntry } from '../../types';
 import { healthEntryService } from '../../services/dataService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
-const TYPE_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string; label: string }> = {
-    test: { icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100', label: 'Lab Test' },
-    prescription: { icon: FileText, color: 'text-green-600', bg: 'bg-green-100', label: 'Prescription' },
-    surgery: { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100', label: 'Surgery' },
-    report: { icon: ClipboardList, color: 'text-purple-600', bg: 'bg-purple-100', label: 'Report' },
-    vitals: { icon: Heart, color: 'text-rose-600', bg: 'bg-rose-100', label: 'Vitals' },
-};
+const TYPE_CONFIG: (t: (en: string, hi: string) => string) => Record<string, { icon: LucideIcon; color: string; bg: string; label: string }> = (t) => ({
+    test: { icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100', label: t('Lab Test', 'लैब टेस्ट') },
+    prescription: { icon: FileText, color: 'text-green-600', bg: 'bg-green-100', label: t('Prescription', 'नुस्खा') },
+    surgery: { icon: Scissors, color: 'text-red-600', bg: 'bg-red-100', label: t('Surgery', 'सर्जरी') },
+    report: { icon: ClipboardList, color: 'text-purple-600', bg: 'bg-purple-100', label: t('Report', 'रिपोर्ट') },
+    vitals: { icon: Heart, color: 'text-rose-600', bg: 'bg-rose-100', label: t('Vitals', 'वाइटल्स') },
+});
 
 export default function HealthTimeline() {
     const { user } = useAuth();
+    const { t, lang } = useLanguage();
+    const typeConfig = TYPE_CONFIG(t);
     const [entries, setEntries] = useState<HealthEntry[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [filter, setFilter] = useState('all');
@@ -49,7 +52,7 @@ export default function HealthTimeline() {
     // Group by month-year
     const grouped: Record<string, HealthEntry[]> = {};
     filtered.forEach(e => {
-        const key = new Date(e.date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        const key = new Date(e.date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'long', year: 'numeric' });
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(e);
     });
@@ -61,13 +64,13 @@ export default function HealthTimeline() {
                     <div className="flex items-center space-x-3">
                         <div className="bg-indigo-100 p-2 rounded-xl"><Clock className="w-6 h-6 text-indigo-600" /></div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-800">Health Timeline</h3>
-                            <p className="text-sm text-gray-500">Visual history of your medical events</p>
+                            <h3 className="text-lg font-bold text-gray-800">{t('Health Timeline', 'स्वास्थ्य समयरेखा')}</h3>
+                            <p className="text-sm text-gray-500">{t('Visual history of your medical events', 'आपके चिकित्सा कार्यक्रमों का ऐतिहासिक विवरण')}</p>
                         </div>
                     </div>
                     <button onClick={() => setShowForm(!showForm)}
                         className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all text-sm">
-                        <Plus className="w-4 h-4" /><span>Add Event</span>
+                        <Plus className="w-4 h-4" /><span>{t('Add Event', 'इवेंट जोड़ें')}</span>
                     </button>
                 </div>
 
@@ -76,20 +79,20 @@ export default function HealthTimeline() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
                                 className="px-3 py-2 rounded-lg glass-input text-sm">
-                                {Object.entries(TYPE_CONFIG).map(([key, config]) => (
+                                {Object.entries(typeConfig).map(([key, config]) => (
                                     <option key={key} value={key}>{config.label}</option>
                                 ))}
                             </select>
                             <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
                                 className="px-3 py-2 rounded-lg glass-input text-sm" />
                             <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder="Event title" />
+                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder={t('Event title', 'इवेंट का शीर्षक')} />
                             <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder="Description (optional)" />
+                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder={t('Description (optional)', 'विवरण (वैकल्पिक)')} />
                         </div>
                         <div className="flex justify-end space-x-2">
-                            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 text-sm">Cancel</button>
-                            <button onClick={addEntry} className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm">Add</button>
+                            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 text-sm">{t('Cancel', 'रद्द करें')}</button>
+                            <button onClick={addEntry} className="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm">{t('Add', 'जोड़ें')}</button>
                         </div>
                     </div>
                 )}
@@ -98,9 +101,9 @@ export default function HealthTimeline() {
                 <div className="flex flex-wrap gap-2 mb-6">
                     <button onClick={() => setFilter('all')}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filter === 'all' ? 'bg-gray-800 text-white' : 'bg-white/50 text-gray-600 hover:bg-white/70'}`}>
-                        All ({entries.length})
+                        {t('All', 'सभी')} ({entries.length})
                     </button>
-                    {Object.entries(TYPE_CONFIG).map(([key, config]) => {
+                    {Object.entries(typeConfig).map(([key, config]) => {
                         const count = entries.filter(e => e.type === key).length;
                         return (
                             <button key={key} onClick={() => setFilter(key)}
@@ -114,8 +117,8 @@ export default function HealthTimeline() {
                 {filtered.length === 0 ? (
                     <div className="text-center py-12">
                         <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <h4 className="text-lg font-bold text-gray-600 mb-2">No Events Yet</h4>
-                        <p className="text-gray-500 text-sm">Add medical events to build your health timeline</p>
+                        <h4 className="text-lg font-bold text-gray-600 mb-2">{t('No Events Yet', 'अभी तक कोई इवेंट नहीं है')}</h4>
+                        <p className="text-gray-500 text-sm">{t('Add medical events to build your health timeline', 'अपनी स्वास्थ्य समयरेखा बनाने के लिए चिकित्सा इवेंट जोड़ें')}</p>
                     </div>
                 ) : (
                     <div className="relative">
@@ -133,7 +136,7 @@ export default function HealthTimeline() {
 
                                 <div className="ml-6 space-y-3 pl-8 border-l-0">
                                     {events.map(entry => {
-                                        const config = TYPE_CONFIG[entry.type] || TYPE_CONFIG.test;
+                                        const config = typeConfig[entry.type] || typeConfig.test;
                                         const Icon = config.icon;
                                         return (
                                             <div key={entry.id} className="relative flex items-start group">
@@ -149,7 +152,7 @@ export default function HealthTimeline() {
                                                                 <p className="font-semibold text-gray-800">{entry.title}</p>
                                                                 {entry.description && <p className="text-sm text-gray-500 mt-0.5">{entry.description}</p>}
                                                                 <p className="text-xs text-gray-400 mt-1">
-                                                                    {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                    {new Date(entry.date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                                 </p>
                                                             </div>
                                                         </div>

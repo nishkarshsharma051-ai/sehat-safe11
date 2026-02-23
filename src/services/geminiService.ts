@@ -88,6 +88,7 @@ export async function getGeminiResponse(
         bloodGroup?: string;
         allergies?: string[];
         conditions?: string[];
+        language?: 'English' | 'Hindi';
     }
 ): Promise<string> {
 
@@ -99,12 +100,19 @@ export async function getGeminiResponse(
         { role: 'model', parts: [{ text: entry.response }] }
     ]);
 
+    // Add language instruction if provided
+    const languageInstruction = userContext?.language === 'Hindi'
+        ? "Please respond in Hindi. "
+        : "Please respond in English. ";
+
+    const augmentedMessage = languageInstruction + userMessage;
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                message: userMessage,
+                message: augmentedMessage,
                 history: historyForBackend,
                 userContext
             }),

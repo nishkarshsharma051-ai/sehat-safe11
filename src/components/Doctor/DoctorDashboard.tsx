@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LucideIcon } from 'lucide-react';
 import {
   Calendar, Users, Clock, FileText, Stethoscope, ClipboardList, Search,
-  LogOut, Sun, Moon, LayoutDashboard, MessageSquare, Bell, Settings, Sparkles, PlusCircle,
+  LogOut, Sun, Moon, LayoutDashboard, MessageSquare, Bell, Settings, Sparkles, PlusCircle, Brain,
   Shield, Lock, User, Mail, Smartphone, Menu, X, ChevronRight, Activity, Pill, Download
 } from 'lucide-react';
 import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
@@ -18,8 +18,9 @@ import { appointmentService, patientService, doctorService, prescriptionService 
 import { getGeminiResponse } from '../../services/geminiService';
 import { AnimatePresence, motion } from 'framer-motion';
 import { API_BASE_URL } from '../../config';
+import PatientIntelligenceHub from './PatientIntelligenceHub';
 
-type ViewType = 'overview' | 'appointments' | 'patients' | 'records' | 'settings';
+type ViewType = 'overview' | 'appointments' | 'patients' | 'records' | 'settings' | 'intelligence';
 
 export default function DoctorDashboard() {
   // Profile Completion State
@@ -300,6 +301,7 @@ export default function DoctorDashboard() {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'appointments', label: 'Appointments', icon: Calendar },
     { id: 'patients', label: 'My Patients', icon: Users },
+    { id: 'intelligence', label: 'Intelligence Hub', icon: Brain },
     { id: 'records', label: 'Medical Records', icon: ClipboardList },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -374,6 +376,8 @@ export default function DoctorDashboard() {
                 return renderAppointments();
               case 'patients':
                 return renderPatients();
+              case 'intelligence':
+                return <PatientIntelligenceHub patients={uniquePatients} allAppointments={appointments} allPrescriptions={prescriptions} />;
               case 'records':
                 return renderRecords();
               case 'settings':

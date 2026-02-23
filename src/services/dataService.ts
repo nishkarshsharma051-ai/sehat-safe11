@@ -5,7 +5,7 @@ import {
     Prescription, Appointment, MedicineReminder, ChatMessage,
     Doctor, HealthProfile, HealthEntry, InsuranceRecord,
     FamilyMember, SecureShareLink, HospitalFavorite, UserProfile,
-    Medicine
+    Medicine, Scheme, HealthPlan, PatientActivePlan
 } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -66,8 +66,22 @@ export const userService = {
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async update(_user: UserProfile) {
-        // Backend update profile
+    async update(user: Partial<UserProfile>) {
+        const res = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                name: user.full_name,
+                pinCode: user.pin_code,
+                annualIncome: user.annual_income,
+                age: (user as any).age,
+                gender: user.gender
+            })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to update profile');
+        }
     }
 };
 
@@ -603,6 +617,35 @@ export const healthEntryService = {
     },
 };
 
+export const schemeService = {
+    async getMatched(): Promise<Scheme[]> {
+        const res = await fetch(`${API_BASE_URL}/api/schemes/match`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data.map(mapScheme) : [];
+    },
+    async getAll(): Promise<Scheme[]> {
+        const res = await fetch(`${API_BASE_URL}/api/schemes/all`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data.map(mapScheme) : [];
+    }
+};
+
+const mapScheme = (s: any): Scheme => ({
+    id: s._id,
+    name: s.name,
+    description: s.description,
+    eligibility: s.eligibility,
+    benefits: s.benefits,
+    link: s.applyLink || s.link,
+    category: s.category
+});
+
 export const insuranceService = {
     async getAll(patientId: string): Promise<InsuranceRecord[]> {
         const res = await fetch(`${API_BASE_URL}/api/patient-data/insurance?patientId=${patientId}`, {
@@ -792,6 +835,41 @@ export const adminService = {
             headers: getAuthHeaders()
         });
         if (!res.ok) return [];
+        return res.json();
+    }
+};
+
+export const healthPlanService = {
+    async getActive(patientId: string): Promise<PatientActivePlan | null> {
+        const res = await fetch(`${API_BASE_URL}/api/patient-data/plans/active?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return null;
+        return res.json();
+    },
+
+    async initialize(patientId: string, plan: HealthPlan): Promise<PatientActivePlan> {
+        const res = await fetch(`${API_BASE_URL}/api/patient-data/plans/initialize`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patientId,
+                planId: plan.id,
+                planName: plan.name,
+                category: plan.category
+            })
+        });
+        if (!res.ok) throw new Error('Failed to initialize plan');
+        return res.json();
+    },
+
+    async completeActivity(patientId: string, planId: string, activityId: string): Promise<PatientActivePlan> {
+        const res = await fetch(`${API_BASE_URL}/api/patient-data/plans/activity/complete`, {
+            method: 'POST',
+            headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId, planId, activityId })
+        });
+        if (!res.ok) throw new Error('Failed to complete activity');
         return res.json();
     }
 };

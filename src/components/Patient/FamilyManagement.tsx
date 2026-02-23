@@ -3,9 +3,11 @@ import { Users, Plus, Trash2, User, ArrowRight, ChevronLeft } from 'lucide-react
 import { useAuth } from '../../contexts/AuthContext';
 import { FamilyMember } from '../../types';
 import { familyService, prescriptionService, appointmentService, reminderService } from '../../services/dataService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function FamilyManagement() {
     const { user } = useAuth();
+    const { t } = useLanguage();
     const [members, setMembers] = useState<FamilyMember[]>([]);
     const [showForm, setShowForm] = useState(false);
     const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
@@ -36,7 +38,7 @@ export default function FamilyManagement() {
     };
 
     const removeMember = async (id: string) => {
-        if (!confirm('Remove this family member?')) return;
+        if (!confirm(t('Remove this family member?', 'इस परिवार के सदस्य को हटाएं?'))) return;
         await familyService.remove(id);
         await loadMembers();
     };
@@ -68,13 +70,25 @@ export default function FamilyManagement() {
 
     const getColor = (rel: string) => relationshipColors[rel] || 'from-gray-500 to-gray-600';
 
+    const getRelLabel = (rel: string) => {
+        const labels: Record<string, string> = {
+            'Father': t('Father', 'पिता'),
+            'Mother': t('Mother', 'माता'),
+            'Spouse': t('Spouse', 'जीवनसाथी'),
+            'Child': t('Child', 'बच्चा'),
+            'Sibling': t('Sibling', 'भाई/बहन'),
+            'Other': t('Other', 'अन्य'),
+        };
+        return labels[rel] || rel;
+    };
+
     if (selectedMember) {
         return (
             <div className="space-y-6">
                 <div className="glass-card p-6">
                     <button onClick={() => setSelectedMember(null)}
                         className="flex items-center space-x-2 text-sm text-gray-600 hover:text-blue-600 mb-4 transition-all">
-                        <ChevronLeft className="w-4 h-4" /><span>Back to family</span>
+                        <ChevronLeft className="w-4 h-4" /><span>{t('Back to family', 'परिवार पर वापस जाएं')}</span>
                     </button>
 
                     <div className="flex items-center space-x-4 mb-6">
@@ -83,28 +97,27 @@ export default function FamilyManagement() {
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold text-gray-800">{selectedMember.name}</h3>
-                            <p className="text-gray-500">{selectedMember.relationship} • {selectedMember.age} years</p>
+                            <p className="text-gray-500">{getRelLabel(selectedMember.relationship)} • {selectedMember.age} {t('years', 'वर्ष')}</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
                         <div className="bg-blue-50 rounded-xl p-4 text-center">
                             <p className="text-2xl font-bold text-blue-700">{memberStats.prescriptions}</p>
-                            <p className="text-xs text-gray-500">Prescriptions</p>
+                            <p className="text-xs text-gray-500">{t('Prescriptions', 'नुस्खे')}</p>
                         </div>
                         <div className="bg-green-50 rounded-xl p-4 text-center">
                             <p className="text-2xl font-bold text-green-700">{memberStats.appointments}</p>
-                            <p className="text-xs text-gray-500">Appointments</p>
+                            <p className="text-xs text-gray-500">{t('Appointments', 'अपॉइंटमेंट')}</p>
                         </div>
                         <div className="bg-yellow-50 rounded-xl p-4 text-center">
                             <p className="text-2xl font-bold text-yellow-700">{memberStats.reminders}</p>
-                            <p className="text-xs text-gray-500">Active Reminders</p>
+                            <p className="text-xs text-gray-500">{t('Active Reminders', 'सक्रिय रिमाइंडर')}</p>
                         </div>
                     </div>
 
                     <div className="mt-6 p-4 bg-gray-50 rounded-xl text-sm text-gray-600">
-                        <p>💡 <strong>Tip:</strong> To add prescriptions, appointments, or reminders for {selectedMember.name},
-                            switch to their profile from the main dashboard. Each family member's data is stored separately for privacy.</p>
+                        <p>💡 <strong>{t('Tip:', 'सुझाव:')}</strong> {t(`To add prescriptions, appointments, or reminders for ${selectedMember.name}, switch to their profile from the main dashboard. Each family member's data is stored separately for privacy.`, `${selectedMember.name} के लिए नुस्खे, अपॉइंटमेंट या रिमाइंडर जोड़ने के लिए, मुख्य डैशबोर्ड से उनके प्रोफ़ाइल पर स्विच करें। प्रत्येक परिवार के सदस्य का डेटा गोपनीयता के लिए अलग से संग्रहीत किया जाता है।`)}</p>
                     </div>
                 </div>
             </div>
@@ -118,13 +131,13 @@ export default function FamilyManagement() {
                     <div className="flex items-center space-x-3">
                         <div className="bg-amber-100 p-2 rounded-xl"><Users className="w-6 h-6 text-amber-600" /></div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-800">Family Health Management</h3>
-                            <p className="text-sm text-gray-500">Manage your family members' health records</p>
+                            <h3 className="text-lg font-bold text-gray-800">{t('Family Health Management', 'परिवार स्वास्थ्य प्रबंधन')}</h3>
+                            <p className="text-sm text-gray-500">{t("Manage your family members' health records", 'अपने परिवार के सदस्यों के स्वास्थ्य रिकॉर्ड प्रबंधित करें')}</p>
                         </div>
                     </div>
                     <button onClick={() => setShowForm(!showForm)}
                         className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:shadow-lg transition-all text-sm">
-                        <Plus className="w-4 h-4" /><span>Add Member</span>
+                        <Plus className="w-4 h-4" /><span>{t('Add Member', 'सदस्य जोड़ें')}</span>
                     </button>
                 </div>
 
@@ -132,23 +145,23 @@ export default function FamilyManagement() {
                     <div className="mb-6 p-4 bg-amber-50/50 rounded-xl space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder="Full Name" />
+                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder={t('Full Name', 'पूरा नाम')} />
                             <select value={form.relationship} onChange={e => setForm({ ...form, relationship: e.target.value })}
                                 className="px-3 py-2 rounded-lg glass-input text-sm">
-                                <option value="">Relationship</option>
-                                <option value="Father">Father</option>
-                                <option value="Mother">Mother</option>
-                                <option value="Spouse">Spouse</option>
-                                <option value="Child">Child</option>
-                                <option value="Sibling">Sibling</option>
-                                <option value="Other">Other</option>
+                                <option value="">{t('Relationship', 'रिश्ता')}</option>
+                                <option value="Father">{t('Father', 'पिता')}</option>
+                                <option value="Mother">{t('Mother', 'माता')}</option>
+                                <option value="Spouse">{t('Spouse', 'जीवनसाथी')}</option>
+                                <option value="Child">{t('Child', 'बच्चा')}</option>
+                                <option value="Sibling">{t('Sibling', 'भाई/बहन')}</option>
+                                <option value="Other">{t('Other', 'अन्य')}</option>
                             </select>
                             <input type="number" value={form.age} onChange={e => setForm({ ...form, age: e.target.value })}
-                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder="Age" />
+                                className="px-3 py-2 rounded-lg glass-input text-sm" placeholder={t('Age', 'उम्र')} />
                         </div>
                         <div className="flex justify-end space-x-2">
-                            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 text-sm">Cancel</button>
-                            <button onClick={addMember} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm">Add</button>
+                            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 text-sm">{t('Cancel', 'रद्द करें')}</button>
+                            <button onClick={addMember} className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm">{t('Add', 'जोड़ें')}</button>
                         </div>
                     </div>
                 )}
@@ -161,18 +174,18 @@ export default function FamilyManagement() {
                                 <User className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <p className="font-bold text-gray-800">{user?.displayName || 'You'}</p>
-                                <p className="text-sm text-gray-500">Self (Primary Account)</p>
+                                <p className="font-bold text-gray-800">{user?.displayName || t('You', 'आप')}</p>
+                                <p className="text-sm text-gray-500">{t('Self (Primary Account)', 'स्वयं (प्राथमिक खाता)')}</p>
                             </div>
                         </div>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Active</span>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{t('Active', 'सक्रिय')}</span>
                     </div>
                 </div>
 
                 {members.length === 0 ? (
                     <div className="text-center py-8">
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 text-sm">No family members added yet</p>
+                        <p className="text-gray-500 text-sm">{t('No family members added yet', 'अभी तक कोई परिवार का सदस्य नहीं जोड़ा गया है')}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -185,7 +198,7 @@ export default function FamilyManagement() {
                                         </div>
                                         <div>
                                             <p className="font-semibold text-gray-800">{member.name}</p>
-                                            <p className="text-sm text-gray-500">{member.relationship} • {member.age} years</p>
+                                            <p className="text-sm text-gray-500">{getRelLabel(member.relationship)} • {member.age} {t('years', 'वर्ष')}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">

@@ -6,9 +6,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ChatMessage } from '../../types';
 import { chatService, healthProfileService } from '../../services/dataService';
 import { getGeminiResponse } from '../../services/geminiService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function ChatBot() {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,7 +80,8 @@ export default function ChatBot() {
         gender: (userProfile as { gender?: string })?.gender,
         bloodGroup: (userProfile as { blood_group?: string })?.blood_group,
         allergies: (userProfile as { allergies?: string[] })?.allergies,
-        conditions: (userProfile as { chronic_conditions?: string[] })?.chronic_conditions
+        conditions: (userProfile as { chronic_conditions?: string[] })?.chronic_conditions,
+        language: lang === 'hi' ? 'Hindi' : 'English' // Hint the AI
       });
 
       const finalMsg: ChatMessage = {
@@ -110,7 +113,7 @@ export default function ChatBot() {
   if (loadingHistory) {
     return (
       <div className="glass-card p-8 text-center">
-        <p className="text-gray-600">Loading chat...</p>
+        <p className="text-gray-600">{t('Loading chat...', 'चैट लोड हो रही है...')}</p>
       </div>
     );
   }
@@ -123,10 +126,10 @@ export default function ChatBot() {
             <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-800">Sehat Safe AI Assistant</h3>
+            <h3 className="font-bold text-gray-800">{t('Sehat Safe AI Assistant', 'सेहत सेफ एआई सहायक')}</h3>
             <p className="text-sm text-gray-600 flex items-center">
               <Sparkles className="w-3 h-3 mr-1 text-yellow-500" />
-              Powered by Google Gemini AI
+              {t('Powered by Google Gemini AI', 'गूगल जेमिनी एआई द्वारा संचालित')}
             </p>
           </div>
         </div>
@@ -136,8 +139,8 @@ export default function ChatBot() {
         {messages.length === 0 && (
           <div className="text-center mt-4">
             <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-bold text-gray-700 mb-2">Hi! I'm your AI Health Assistant</h3>
-            <p className="text-gray-500 mb-6">Ask me about symptoms, medications, or health tips</p>
+            <h3 className="text-lg font-bold text-gray-700 mb-2">{t("Hi! I'm your AI Health Assistant", "नमस्ते! मैं आपका एआई स्वास्थ्य सहायक हूँ")}</h3>
+            <p className="text-gray-500 mb-6">{t('Ask me about symptoms, medications, or health tips', 'मुझसे लक्षणों, दवाओं या स्वास्थ्य युक्तियों के बारे में पूछें')}</p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
               {quickQuestions.map((question, idx) => (
@@ -148,7 +151,12 @@ export default function ChatBot() {
                   }}
                   className="text-left p-3 rounded-xl bg-white/30 hover:bg-white/50 text-sm text-gray-700 transition-all border border-white/20"
                 >
-                  {question}
+                  {t(question,
+                    question === 'What should I do for a headache?' ? 'सिरदर्द के लिए मुझे क्या करना चाहिए?' :
+                      question === 'How to manage fever?' ? 'बुखार का प्रबंधन कैसे करें?' :
+                        question === 'Tips for better sleep' ? 'बेहतर नींद के टिप्स' :
+                          question === 'How to reduce stress?' ? 'तनाव कैसे कम करें?' : question
+                  )}
                 </button>
               ))}
             </div>
@@ -203,7 +211,7 @@ export default function ChatBot() {
             <div className="flex-1 bg-white/50 rounded-2xl rounded-tl-none p-4 border border-white/20">
               <div className="flex items-center space-x-2">
                 <Loader className="w-4 h-4 text-gray-600 animate-spin" />
-                <span className="text-sm text-gray-500">Thinking...</span>
+                <span className="text-sm text-gray-500">{t('Thinking...', 'सोच रहा हूँ...')}</span>
               </div>
             </div>
           </div>
@@ -219,7 +227,7 @@ export default function ChatBot() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
-            placeholder="Ask a health question..."
+            placeholder={t('Ask a health question...', 'स्वास्थ्य संबंधी प्रश्न पूछें...')}
             className="flex-1 px-4 py-3 rounded-xl glass-input"
           />
           <button
@@ -228,7 +236,7 @@ export default function ChatBot() {
             className="px-6 py-3 bg-gradient-to-r from-blue-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             <Send className="w-5 h-5" />
-            <span>Send</span>
+            <span>{t('Send', 'भेजें')}</span>
           </button>
         </form>
       </div>

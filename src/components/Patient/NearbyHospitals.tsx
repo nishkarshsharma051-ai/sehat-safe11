@@ -3,6 +3,7 @@ import { MapPin, Star, Phone, Navigation, Search, Locate, Loader2 } from 'lucide
 import { useAuth } from '../../contexts/AuthContext';
 import { HospitalFavorite } from '../../types';
 import { hospitalFavoriteService } from '../../services/dataService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Hospital {
     name: string;
@@ -35,6 +36,7 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function NearbyHospitals() {
     const { user } = useAuth();
+    const { t } = useLanguage();
     const [favorites, setFavorites] = useState<HospitalFavorite[]>([]);
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState<'all' | 'favorites'>('all');
@@ -58,7 +60,7 @@ export default function NearbyHospitals() {
 
     const requestLocation = useCallback(() => {
         if (!navigator.geolocation) {
-            setLocationError('Geolocation is not supported by your browser');
+            setLocationError(t('Geolocation is not supported by your browser', 'आपके ब्राउज़र द्वारा जियोलोकेशन समर्थित नहीं है'));
             return;
         }
         setLocating(true);
@@ -69,7 +71,7 @@ export default function NearbyHospitals() {
                 setLocating(false);
             },
             (err) => {
-                setLocationError(err.code === 1 ? 'Location access denied. Please allow location in your browser.' : 'Unable to get your location');
+                setLocationError(err.code === 1 ? t('Location access denied. Please allow location in your browser.', 'लोकेशन एक्सेस अस्वीकार कर दिया गया। कृपया अपने ब्राउज़र में अनुमति दें।') : t('Unable to get your location', 'आपकी लोकेशन प्राप्त करने में असमर्थ'));
                 setLocating(false);
                 // Fallback to Delhi center
                 setUserLocation({ lat: 28.6139, lng: 77.2090 });
@@ -96,9 +98,9 @@ export default function NearbyHospitals() {
 
             const data = await response.json();
             const results: Hospital[] = data.elements.map((el: any) => ({
-                name: el.tags.name || 'Unnamed Hospital',
-                address: el.tags['addr:street'] || el.tags['addr:full'] || 'Address near your location',
-                phone: el.tags.phone || el.tags['contact:phone'] || 'N/A',
+                name: el.tags.name || t('Unnamed Hospital', 'बिना नाम का अस्पताल'),
+                address: el.tags['addr:street'] || el.tags['addr:full'] || t('Address near your location', 'आपकी लोकेशन के पास का पता'),
+                phone: el.tags.phone || el.tags['contact:phone'] || t('N/A', 'उपलब्ध नहीं'),
                 type: 'hospital',
                 lat: el.lat || el.center.lat,
                 lng: el.lon || el.center.lon
@@ -187,8 +189,8 @@ export default function NearbyHospitals() {
                     <div className="flex items-center space-x-3">
                         <div className="bg-rose-100 p-2 rounded-xl"><MapPin className="w-6 h-6 text-rose-600" /></div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-800">Nearby Hospitals</h3>
-                            <p className="text-sm text-gray-500">Find hospitals and get directions</p>
+                            <h3 className="text-lg font-bold text-gray-800">{t('Nearby Hospitals', 'नजदीकी अस्पताल')}</h3>
+                            <p className="text-sm text-gray-500">{t('Find hospitals and get directions', 'अस्पताल खोजें और दिशा-निर्देश प्राप्त करें')}</p>
                         </div>
                     </div>
                     <button onClick={requestLocation} disabled={locating}
@@ -197,7 +199,7 @@ export default function NearbyHospitals() {
                             : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                             }`}>
                         {locating || fetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
-                        <span>{locating ? 'Locating...' : fetching ? 'Finding Hospitals...' : userLocation ? 'Location Active' : 'Get Location'}</span>
+                        <span>{locating ? t('Locating...', 'ढूंढ रहे हैं...') : fetching ? t('Finding Hospitals...', 'अस्पताल खोज रहे हैं...') : userLocation ? t('Location Active', 'लोकेशन सक्रिय') : t('Get Location', 'लोकेशन प्राप्त करें')}</span>
                     </button>
                 </div>
 
@@ -209,10 +211,10 @@ export default function NearbyHospitals() {
                 )}
                 {userLocation && !locationError && (
                     <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 flex items-center justify-between">
-                        <span>📍 Your location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</span>
+                        <span>📍 {t('Your location:', 'आपकी लोकेशन:')} {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</span>
                         {selectedHospital && (
                             <button onClick={() => setSelectedHospital(null)} className="text-xs underline text-green-600 hover:text-green-800">
-                                Clear selection
+                                {t('Clear selection', 'चयन साफ़ करें')}
                             </button>
                         )}
                     </div>
@@ -235,14 +237,14 @@ export default function NearbyHospitals() {
                     <div className="relative flex-1">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input value={search} onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-3 py-2 rounded-lg glass-input text-sm" placeholder="Search hospitals..." />
+                            className="w-full pl-10 pr-3 py-2 rounded-lg glass-input text-sm" placeholder={t('Search hospitals...', 'अस्पताल खोजें...')} />
                     </div>
                     <div className="flex bg-white/50 rounded-lg p-0.5">
                         <button onClick={() => setActiveTab('all')}
-                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}>All</button>
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}>{t('All', 'सभी')}</button>
                         <button onClick={() => setActiveTab('favorites')}
                             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'favorites' ? 'bg-blue-500 text-white' : 'text-gray-600'}`}>
-                            ★ Favorites ({favorites.length})</button>
+                            ★ {t('Favorites', 'पसंदीदा')} ({favorites.length})</button>
                     </div>
                 </div>
 
@@ -250,7 +252,7 @@ export default function NearbyHospitals() {
                     {displayList.length === 0 ? (
                         <div className="text-center py-8">
                             <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">{activeTab === 'favorites' ? 'No favorites saved yet' : 'No hospitals found'}</p>
+                            <p className="text-gray-500">{activeTab === 'favorites' ? t('No favorites saved yet', 'अभी तक कोई पसंदीदा सहेजा नहीं गया है') : t('No hospitals found', 'कोई अस्पताल नहीं मिला')}</p>
                         </div>
                     ) : displayList.map((hospital: Hospital, idx: number) => {
                         const dist = userLocation ? distanceKm(userLocation.lat, userLocation.lng, hospital.lat, hospital.lng) : null;

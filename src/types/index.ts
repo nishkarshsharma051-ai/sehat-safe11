@@ -8,6 +8,8 @@ export interface UserProfile {
   specialization?: string;
   license_number?: string;
   hospital_name?: string;
+  pin_code?: string;
+  annual_income?: number;
   created_at?: string;
 }
 
@@ -161,4 +163,52 @@ export interface HospitalFavorite {
   type: 'hospital' | 'clinic' | 'pharmacy';
   lat?: number;
   lng?: number;
+}
+
+export interface Scheme {
+  id: string;
+  name: string;
+  description: string;
+  eligibility: {
+    minAge?: number;
+    maxAge?: number;
+    incomeLimit?: number;
+    gender?: 'All' | 'Male' | 'Female';
+    state?: string;
+    chronicConditions?: string[];
+  };
+  benefits: string[];
+  link: string;
+  category: 'central' | 'state';
+}
+
+export interface PatientActivePlan {
+  id: string;
+  patientId: string;
+  planId: string;
+  planName: string;
+  category: string;
+  status: 'active' | 'completed';
+  completedActivities: string[];
+  startedAt: string;
+  completedAt?: string;
+}
+
+export interface HealthPlan {
+  id: string;
+  name: string;
+  description: string;
+  duration: string;
+  intensity: 'Low' | 'Moderate' | 'High';
+  category: 'wellness' | 'medical' | 'rehabilitation';
+  activities: PlanActivity[];
+  recommendation_reason: string;
+}
+
+export interface PlanActivity {
+  id: string;
+  title: string;
+  description: string;
+  frequency: string;
+  type: 'exercise' | 'diet' | 'checkup' | 'meditation';
 }

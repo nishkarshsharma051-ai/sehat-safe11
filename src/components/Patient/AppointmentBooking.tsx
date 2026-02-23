@@ -3,9 +3,11 @@ import { Calendar, Clock, Search, Plus, MapPin, X, CheckCircle, AlertCircle } fr
 import { useAuth } from '../../contexts/AuthContext';
 import { Appointment, Doctor } from '../../types';
 import { appointmentService, doctorService } from '../../services/dataService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function AppointmentBooking() {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function AppointmentBooking() {
       setShowBooking(false);
       setFormData({ doctor_id: '', appointment_date: '', appointment_time: '', reason: '' });
       setSearchTerm('');
-      setSuccess('Appointment booked successfully!');
+      setSuccess(t('Appointment booked successfully!', 'अपॉइंटमेंट सफलतापूर्वक बुक हो गया!'));
       setTimeout(() => setSuccess(''), 4000);
     } catch (error) {
       console.error('Error booking appointment:', error);
@@ -69,7 +71,7 @@ export default function AppointmentBooking() {
   };
 
   const cancelAppointment = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+    if (!confirm(t('Are you sure you want to cancel this appointment?', 'क्या आप वाकई इस अपॉइंटमेंट को रद्द करना चाहते हैं?'))) return;
     try {
       await appointmentService.updateStatus(id, 'cancelled');
       setAppointments(prev =>
@@ -96,11 +98,21 @@ export default function AppointmentBooking() {
     }
   };
 
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case 'confirmed': return t('Confirmed', 'पुष्टीकृत');
+      case 'pending': return t('Pending', 'लंबित');
+      case 'completed': return t('Completed', 'पूरा हुआ');
+      case 'cancelled': return t('Cancelled', 'रद्द');
+      default: return status;
+    }
+  };
+
   if (loading) {
     return (
       <div className="glass-card p-8 text-center">
         <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-        <p className="text-gray-600 dark:text-gray-400">Loading appointments...</p>
+        <p className="text-gray-600 dark:text-gray-400">{t('Loading appointments...', 'अपॉइंटमेंट लोड हो रहे हैं...')}</p>
       </div>
     );
   }
@@ -119,15 +131,17 @@ export default function AppointmentBooking() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">My Appointments</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{activeAppointments.length} active appointment{activeAppointments.length !== 1 ? 's' : ''}</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{t('My Appointments', 'मेरे अपॉइंटमेंट')}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {activeAppointments.length} {t('active appointment', 'सक्रिय अपॉइंटमेंट')}{activeAppointments.length !== 1 ? t('s', '') : ''}
+          </p>
         </div>
         <button
           onClick={() => setShowBooking(true)}
           className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all flex items-center space-x-2 shadow-blue-500/20 shadow-lg"
         >
           <Plus className="w-5 h-5" />
-          <span>Book Appointment</span>
+          <span>{t('Book Appointment', 'अपॉइंटमेंट बुक करें')}</span>
         </button>
       </div>
 
@@ -136,8 +150,8 @@ export default function AppointmentBooking() {
         {activeAppointments.length === 0 ? (
           <div className="col-span-2 glass-card p-12 text-center">
             <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-700 dark:text-white mb-2">No Appointments</h3>
-            <p className="text-gray-500 dark:text-gray-400">Book your first appointment with a doctor below.</p>
+            <h3 className="text-xl font-bold text-gray-700 dark:text-white mb-2">{t('No Appointments', 'कोई अपॉइंटमेंट नहीं')}</h3>
+            <p className="text-gray-500 dark:text-gray-400">{t('Book your first appointment with a doctor below.', 'नीचे डॉक्टर के साथ अपना पहला अपॉइंटमेंट बुक करें।')}</p>
           </div>
         ) : (
           activeAppointments.map((appointment) => (
@@ -148,9 +162,9 @@ export default function AppointmentBooking() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="font-bold text-gray-800 dark:text-white text-lg">
-                    Dr. {appointment.doctor?.full_name || 'Doctor'}
+                    {t('Dr.', 'डॉ.')} {appointment.doctor?.full_name || t('Doctor', 'डॉक्टर')}
                   </h3>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">{appointment.doctor?.specialization || 'General Physician'}</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">{appointment.doctor?.specialization ? t(appointment.doctor.specialization, appointment.doctor.specialization) : t('General Physician', 'सामान्य चिकित्सक')}</p>
                   {appointment.doctor?.hospital_name && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-1">
                       <MapPin className="w-3 h-3 mr-1" />
@@ -159,33 +173,33 @@ export default function AppointmentBooking() {
                   )}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(appointment.status)}`}>
-                  {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                  {translateStatus(appointment.status)}
                 </span>
               </div>
 
               <div className="space-y-2 mb-4 p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                   <Calendar className="w-4 h-4 mr-2 text-blue-500" />
-                  {new Date(appointment.appointment_date).toLocaleDateString('en-IN', {
+                  {new Date(appointment.appointment_date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', {
                     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                   })}
                 </div>
                 <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                   <Clock className="w-4 h-4 mr-2 text-indigo-500" />
-                  {new Date(appointment.appointment_date).toLocaleTimeString([], {
+                  {new Date(appointment.appointment_date).toLocaleTimeString(t('en-IN', 'hi-IN'), {
                     hour: '2-digit', minute: '2-digit',
                   })}
                 </div>
               </div>
 
               <div className="mb-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide font-bold">Reason</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide font-bold">{t('Reason', 'कारण')}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{appointment.reason}</p>
               </div>
 
               {appointment.notes && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl mb-4">
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-bold uppercase tracking-wide">Doctor's Notes</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mb-1 font-bold uppercase tracking-wide">{t("Doctor's Notes", "डॉक्टर के नोट्स")}</p>
                   <p className="text-sm text-gray-800 dark:text-gray-200">{appointment.notes}</p>
                 </div>
               )}
@@ -196,7 +210,7 @@ export default function AppointmentBooking() {
                   className="w-full py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-medium transition-colors flex items-center justify-center space-x-1"
                 >
                   <X className="w-4 h-4" />
-                  <span>Cancel Appointment</span>
+                  <span>{t('Cancel Appointment', 'अपॉइंटमेंट रद्द करें')}</span>
                 </button>
               )}
             </div>
@@ -209,19 +223,19 @@ export default function AppointmentBooking() {
         <div>
           <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
-            Cancelled ({cancelledAppointments.length})
+            {t('Cancelled', 'रद्द')} ({cancelledAppointments.length})
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {cancelledAppointments.map(appointment => (
               <div key={appointment.id} className="glass-card p-4 opacity-60 border-l-4 border-l-red-400">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-300">Dr. {appointment.doctor?.full_name || 'Doctor'}</p>
+                    <p className="font-semibold text-gray-700 dark:text-gray-300">{t('Dr.', 'डॉ.')} {appointment.doctor?.full_name || t('Doctor', 'डॉक्टर')}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {new Date(appointment.appointment_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {new Date(appointment.appointment_date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : 'en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
-                  <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs rounded-lg font-bold">Cancelled</span>
+                  <span className="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs rounded-lg font-bold">{t('Cancelled', 'रद्द')}</span>
                 </div>
               </div>
             ))}
@@ -240,7 +254,7 @@ export default function AppointmentBooking() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">Book Appointment</h3>
+              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{t('Book Appointment', 'अपॉइंटमेंट बुक करें')}</h3>
               <button onClick={() => setShowBooking(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -249,7 +263,7 @@ export default function AppointmentBooking() {
             <form onSubmit={bookAppointment} className="space-y-5">
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Search Doctor
+                  {t('Search Doctor', 'डॉक्टर खोजें')}
                 </label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -257,7 +271,7 @@ export default function AppointmentBooking() {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name or specialization"
+                    placeholder={t("Search by name or specialization", "नाम या विशेषज्ञता के आधार पर खोजें")}
                     className="w-full pl-10 pr-4 py-3 rounded-xl glass-input"
                   />
                 </div>
@@ -265,7 +279,7 @@ export default function AppointmentBooking() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Select Doctor
+                  {t('Select Doctor', 'डॉक्टर चुनें')}
                 </label>
                 {filteredDoctors.length > 0 ? (
                   <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
@@ -273,8 +287,8 @@ export default function AppointmentBooking() {
                       <label
                         key={doctor.id}
                         className={`flex items-center p-3 rounded-xl cursor-pointer transition-all ${formData.doctor_id === doctor.id
-                            ? 'bg-blue-500/10 border-2 border-blue-400'
-                            : 'bg-white/30 dark:bg-white/5 border-2 border-transparent hover:bg-white/50 dark:hover:bg-white/10'
+                          ? 'bg-blue-500/10 border-2 border-blue-400'
+                          : 'bg-white/30 dark:bg-white/5 border-2 border-transparent hover:bg-white/50 dark:hover:bg-white/10'
                           }`}
                       >
                         <input
@@ -289,22 +303,22 @@ export default function AppointmentBooking() {
                           {doctor.full_name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-800 dark:text-white">Dr. {doctor.full_name}</p>
+                          <p className="font-semibold text-gray-800 dark:text-white">{t('Dr.', 'डॉ.')} {doctor.full_name}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {doctor.specialization}{doctor.hospital_name && ` • ${doctor.hospital_name}`}
+                            {t(doctor.specialization, doctor.specialization)}{doctor.hospital_name && ` • ${doctor.hospital_name}`}
                           </p>
                         </div>
                       </label>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 p-3 text-center">No doctors found</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 p-3 text-center">{t('No doctors found', 'कोई डॉक्टर नहीं मिला')}</p>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">Date</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">{t('Date', 'तारीख')}</label>
                   <input
                     type="date"
                     value={formData.appointment_date}
@@ -316,7 +330,7 @@ export default function AppointmentBooking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">Time</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">{t('Time', 'समय')}</label>
                   <input
                     type="time"
                     value={formData.appointment_time}
@@ -329,7 +343,7 @@ export default function AppointmentBooking() {
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                  Reason for Visit
+                  {t('Reason for Visit', 'डॉक्टर से मिलने का कारण')}
                 </label>
                 <textarea
                   value={formData.reason}
@@ -337,7 +351,7 @@ export default function AppointmentBooking() {
                   required
                   rows={3}
                   className="w-full px-4 py-3 rounded-xl glass-input resize-none"
-                  placeholder="Describe your symptoms or reason for consultation"
+                  placeholder={t("Describe your symptoms or reason for consultation", "अपने लक्षणों या परामर्श के कारण का वर्णन करें")}
                 />
               </div>
 
@@ -348,9 +362,9 @@ export default function AppointmentBooking() {
                   className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
                 >
                   {booking ? (
-                    <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span><span>Booking...</span></>
+                    <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span><span>{t('Booking...', 'बुकिंग हो रही है...')}</span></>
                   ) : (
-                    <><Calendar className="w-4 h-4" /><span>Confirm Booking</span></>
+                    <><Calendar className="w-4 h-4" /><span>{t('Confirm Booking', 'बुकिंग की पुष्टि करें')}</span></>
                   )}
                 </button>
                 <button
@@ -358,7 +372,7 @@ export default function AppointmentBooking() {
                   onClick={() => setShowBooking(false)}
                   className="flex-1 py-3 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-all"
                 >
-                  Cancel
+                  {t('Cancel', 'रद्द करें')}
                 </button>
               </div>
             </form>

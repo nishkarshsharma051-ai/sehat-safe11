@@ -5,19 +5,21 @@ import { useAuth } from '../../contexts/AuthContext';
 import { GlassCard } from '../ui/GlassCard';
 import { PremiumButton } from '../ui/PremiumButton';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { API_BASE_URL } from '../../config';
 import { downloadPrescriptionPdf } from '../../utils/prescriptionPdf';
 
 
 export default function PrescriptionUpload({ onUploadComplete }: { onUploadComplete?: () => void }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('prescription');
   const [tags, setTags] = useState('');
   const [serverStatus, setServerStatus] = useState<'unknown' | 'online' | 'error'>('unknown');
   const [uiState, setUiState] = useState<'idle' | 'uploading' | 'ocr' | 'success' | 'error'>('idle');
 
   const [progress, setProgress] = useState(0);
-  const [ocrStepText, setOcrStepText] = useState('Extracting text from document...');
+  const [ocrStepText, setOcrStepText] = useState(t('Extracting text from document...', 'दस्तावेज़ से टेक्स्ट निकाला जा रहा है...'));
   const [ocrResult, setOcrResult] = useState<{ doctor: string; date: string; medicines: { name: string }[]; diagnosis: string } | null>(null);
   const [uploadedPrescriptionId, setUploadedPrescriptionId] = useState<string | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
 
   const startUploadFlow = (file: File) => {
     if (file.size > 20 * 1024 * 1024) {
-      setErrorMessage('File too large (Max 20MB)');
+      setErrorMessage(t('File too large (Max 20MB)', 'फ़ाइल बहुत बड़ी है (अधिकतम 20MB)'));
       setUiState('error');
       return;
     }
@@ -78,13 +80,18 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
 
   const runActualUpload = async (file: File) => {
     setUiState('ocr');
-    setOcrStepText('Sending to backend...');
+    setOcrStepText(t('Sending to backend...', 'सर्वर पर भेजा जा रहा है...'));
 
     try {
       if (!user) throw new Error("User not authenticated");
 
       // Step messages rotation
-      const steps = ['Extracting text...', 'Detecting doctor...', 'Reading medicines...', 'Finishing up...'];
+      const steps = [
+        t('Extracting text...', 'टेक्स्ट निकाल रहा है...'),
+        t('Detecting doctor...', 'डॉक्टर का पता लगा रहा है...'),
+        t('Reading medicines...', 'दवाएं पढ़ रहा है...'),
+        t('Finishing up...', 'समाप्त कर रहा है...')
+      ];
       let stepIdx = 0;
       const stepInterval = setInterval(() => {
         setOcrStepText(steps[stepIdx++ % steps.length]);
@@ -117,10 +124,10 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
 
       // Extract relevant data for display in UI
       const finalData = {
-        doctor: analysis['Doctor Name'] || 'Unknown',
+        doctor: analysis['Doctor Name'] || t('Unknown', 'अज्ञात'),
         date: analysis['Date'] || new Date().toLocaleDateString(),
         medicines: medicines || [], // Use medicines from backend result
-        diagnosis: analysis['Diagnosis'] || 'Unknown'
+        diagnosis: analysis['Diagnosis'] || t('Unknown', 'अज्ञात')
       };
 
       // Success State
@@ -134,7 +141,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
 
     } catch (err) {
       console.error(err);
-      setErrorMessage((err as Error).message || 'Upload failed');
+      setErrorMessage((err as Error).message || t('Upload failed', 'अपलोड विफल रहा'));
       setUiState('error');
     }
   };
@@ -155,9 +162,9 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
           <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
               <Upload className="w-6 h-6 text-indigo-500" />
-              Upload Prescription
+              {t('Upload Prescription', 'नुस्खा अपलोड करें')}
             </h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Upload and analyze your medical documents automatically.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{t('Upload and analyze your medical documents automatically.', 'अपने मेडिकल दस्तावेज़ों को स्वचालित रूप से अपलोड और विश्लेषण करें।')}</p>
           </div>
           <button
             onClick={checkServer}
@@ -169,36 +176,41 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
             `}
           >
             <Server className="w-3 h-3" />
-            {serverStatus === 'online' ? 'Server Online' : serverStatus === 'error' ? 'Server Offline' : 'Checking...'}
+            {serverStatus === 'online' ? t('Server Online', 'सर्वर ऑनलाइन') : serverStatus === 'error' ? t('Server Offline', 'सर्वर ऑफलाइन') : t('Checking...', 'जाँच हो रही है...')}
           </button>
         </div>
 
         {/* Configurations */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Category</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{t('Category', 'श्रेणी')}</label>
             <div className="flex flex-wrap gap-2">
-              {['prescription', 'lab', 'scan', 'discharge'].map(t => (
+              {['prescription', 'lab', 'scan', 'discharge'].map(ct => (
                 <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
+                  key={ct}
+                  onClick={() => setActiveTab(ct)}
                   className={`
                     px-4 py-2 rounded-xl text-sm font-medium transition-all
-                    ${activeTab === t
+                    ${activeTab === ct
                       ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'
                       : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'}
                   `}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t(ct.charAt(0).toUpperCase() + ct.slice(1),
+                    ct === 'prescription' ? 'नुस्खा' :
+                      ct === 'lab' ? 'लैब' :
+                        ct === 'scan' ? 'स्कैन' :
+                          ct === 'discharge' ? 'डिस्चार्ज' : ct
+                  )}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Health Tags</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{t('Health Tags', 'स्वास्थ्य टैग')}</label>
             <input
               type="text"
-              placeholder="e.g. Diabetes, Fever (comma separated)"
+              placeholder={t('e.g. Diabetes, Fever (comma separated)', 'जैसे मधुमेह, बुखार (अल्पविराम द्वारा अलग)')}
               value={tags}
               onChange={e => setTags(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-gray-400"
@@ -241,8 +253,8 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                 <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mb-4">
                   <Upload className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">Click to upload or drag and drop</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">PDF, PNG, JPG (max 20MB)</p>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">{t('Click to upload or drag and drop', 'अपलोड करने के लिए क्लिक करें या खींचकर छोड़ें')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('PDF, PNG, JPG (max 20MB)', 'पी़डीएफ, पीएनजी, जेपीजी (अधिकतम 20MB)')}</p>
               </motion.div>
             )}
 
@@ -255,7 +267,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                 className="w-full max-w-sm flex flex-col items-center"
               >
                 <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-                <h3 className="font-bold text-gray-800 dark:text-white mb-2">Uploading Document...</h3>
+                <h3 className="font-bold text-gray-800 dark:text-white mb-2">{t('Uploading Document...', 'दस्तावेज़ अपलोड हो रहा है...')}</h3>
                 <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <motion.div
                     className="h-full bg-indigo-500 rounded-full"
@@ -279,7 +291,7 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                 <div className="w-14 h-14 bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mb-4 animate-pulse">
                   <FileText className="w-7 h-7" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">Analyzing Document</h3>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">{t('Analyzing Document', 'दस्तावेज़ का विश्लेषण')}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">{ocrStepText}</p>
               </motion.div>
             )}
@@ -295,22 +307,22 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Analysis Complete</h3>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{t('Analysis Complete', 'विश्लेषण पूरा हुआ')}</h3>
 
                 {/* Result Grid */}
                 {ocrResult && (
                   <div className="w-full max-w-lg bg-white dark:bg-black/20 rounded-xl border border-gray-200 dark:border-white/10 p-4 mb-6 text-left">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="block text-xs font-bold text-gray-400 uppercase">Doctor</span>
+                        <span className="block text-xs font-bold text-gray-400 uppercase">{t('Doctor', 'डॉक्टर')}</span>
                         <span className="font-medium text-gray-800 dark:text-white">{ocrResult.doctor}</span>
                       </div>
                       <div>
-                        <span className="block text-xs font-bold text-gray-400 uppercase">Date</span>
+                        <span className="block text-xs font-bold text-gray-400 uppercase">{t('Date', 'तारीख')}</span>
                         <span className="font-medium text-gray-800 dark:text-white">{ocrResult.date}</span>
                       </div>
                       <div className="col-span-2">
-                        <span className="block text-xs font-bold text-gray-400 uppercase">Medicines</span>
+                        <span className="block text-xs font-bold text-gray-400 uppercase">{t('Medicines', 'दवाएं')}</span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {ocrResult.medicines.map((m, i) => (
                             <span key={i} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded text-xs font-bold">
@@ -341,10 +353,10 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                     icon={<Download className="w-4 h-4" />}
                     disabled={!uploadedPrescriptionId && !uploadedFileUrl}
                   >
-                    Download PDF
+                    {t('Download PDF', 'पीडीएफ डाउनलोड करें')}
                   </PremiumButton>
                   <PremiumButton onClick={reset} variant="secondary" icon={<RefreshCw className="w-4 h-4" />}>
-                    Upload Another
+                    {t('Upload Another', 'एक और अपलोड करें')}
                   </PremiumButton>
                 </div>
               </motion.div>
@@ -361,10 +373,10 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
                 <div className="w-16 h-16 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-4">
                   <AlertCircle className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Upload Failed</h3>
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">{t('Upload Failed', 'अपलोड विफल')}</h3>
                 <p className="text-red-500 text-sm mb-6 max-w-xs">{errorMessage}</p>
                 <PremiumButton onClick={reset} variant="secondary" icon={<RefreshCw className="w-4 h-4" />}>
-                  Try Again
+                  {t('Try Again', 'फिर से प्रयास करें')}
                 </PremiumButton>
               </motion.div>
             )}
@@ -375,9 +387,9 @@ export default function PrescriptionUpload({ onUploadComplete }: { onUploadCompl
         <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/10 flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>Tesseract OCR Engine v5.0</span>
+            <span>{t('Tesseract OCR Engine v5.0', 'टेसेरैक्ट ओसीआर इंजन v5.0')}</span>
           </div>
-          <span>Secure • Local Processing</span>
+          <span>{t('Secure • Local Processing', 'सुरक्षित • स्थानीय प्रसंस्करण')}</span>
         </div>
       </GlassCard>
     </div>
