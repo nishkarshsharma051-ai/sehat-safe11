@@ -114,8 +114,14 @@ function AppContent() {
   const effectiveRole = role || preAuthRole;
 
   if (!effectiveRole) {
-    // Should not happen if flow is correct, but fallback to Patient
-    return <LoadingSpinner />;
+    // Escape hatch: If we have a user but NO role was found after loading,
+    // show RoleSelection so they can re-assert who they are
+    return (
+      <RoleSelection onSelect={(r) => {
+        setPreAuthRole(r);
+        localStorage.setItem('sehat_safe_selected_role', r);
+      }} />
+    );
   }
 
   return (
