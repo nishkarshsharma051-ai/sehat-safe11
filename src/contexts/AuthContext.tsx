@@ -43,6 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(() => !localStorage.getItem('backend_user'));
 
     useEffect(() => {
+        // Safety timeout to prevent infinite loading screen
+        const safetyTimeout = setTimeout(() => {
+            if (loading) {
+                console.warn('Auth check taking too long, forcing loading to false');
+                setLoading(false);
+            }
+        }, 8000);
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser?.email) {
                 try {
@@ -58,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     if (response.ok) {
                         const data = await response.json();
                         const backendUser: BackendUser = {
-                            uid: data.user.id, // Use MongoDB _id
+                            uid: data.user.id,
                             email: data.user.email,
                             displayName: data.user.name,
                             role: data.user.role,
@@ -77,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(firebaseUser);
                 }
             } else {
-                // If firebase confirms no user, clear local state
                 if (!firebaseUser) {
                     setUser(null);
                     setToken(null);
@@ -88,8 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             }
             setLoading(false);
+            clearTimeout(safetyTimeout);
         });
-        return unsubscribe;
+        return () => {
+            unsubscribe();
+            clearTimeout(safetyTimeout);
+        };
     }, []);
 
     const signInWithGoogle = async () => {
