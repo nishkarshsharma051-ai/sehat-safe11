@@ -21,8 +21,8 @@ const pageVariants = {
             ease: [0.25, 1, 0.5, 1] as const // Cubic bezier for "Apple-like" feel
         },
         transitionEnd: {
-            filter: "none",
-            transform: "none"
+            transform: "none",
+            filter: "none"
         }
     },
     exit: {

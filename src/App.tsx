@@ -125,9 +125,9 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-[100dvh] relative overflow-x-hidden">
+    <div className="h-[100dvh] relative overflow-hidden">
       <AnimatePresence mode="wait">
-        <PageTransition key={effectiveRole || 'guest'} className="min-h-[100dvh]">
+        <PageTransition key={effectiveRole || 'guest'} className="h-[100dvh]">
           <Suspense fallback={<LoadingSpinner />}>
             {effectiveRole === 'admin' ? (
               <>
