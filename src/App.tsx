@@ -16,6 +16,7 @@ const EmergencySOS = lazy(() => import('./components/Emergency/EmergencySOS'));
 const AdminDashboard = lazy(() => import('./components/Admin/AdminDashboard'));
 const ViewSwitcher = lazy(() => import('./components/Admin/ViewSwitcher'));
 const EmergencyProfile = lazy(() => import('./pages/EmergencyProfile'));
+const InitialLoader = lazy(() => import('./components/ui/InitialLoader'));
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 function LoadingSpinner() {
@@ -42,6 +43,14 @@ function AppContent() {
     if (backendUser) return JSON.parse(backendUser).role === 'admin';
     return false;
   });
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -125,33 +134,45 @@ function AppContent() {
   }
 
   return (
-    <div className="h-[100dvh] relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        <PageTransition key={effectiveRole || 'guest'} className="h-[100dvh]">
-          <Suspense fallback={<LoadingSpinner />}>
-            {effectiveRole === 'admin' ? (
-              <>
-                <AdminDashboard />
-                {isAdmin && <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />}
-              </>
-            ) : effectiveRole === 'doctor' ? (
-              <>
-                <DoctorDashboard />
-                {isAdmin && <ViewSwitcher currentRole={role || 'doctor'} onRoleChange={setRole} />}
-              </>
-            ) : (
-              <>
-                <PatientDashboard />
-                {isAdmin && <ViewSwitcher currentRole={role || 'patient'} onRoleChange={setRole} />}
-              </>
-            )}
+    <>
+      <AnimatePresence>
+        {showSplash && (
+          <Suspense fallback={null}>
+            <InitialLoader />
           </Suspense>
-        </PageTransition>
+        )}
       </AnimatePresence>
-      <Suspense fallback={null}>
-        <EmergencySOS />
-      </Suspense>
-    </div>
+
+      <div className="h-[100dvh] relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          {!showSplash && (
+            <PageTransition key={effectiveRole || 'guest'} className="h-[100dvh]">
+              <Suspense fallback={<LoadingSpinner />}>
+                {effectiveRole === 'admin' ? (
+                  <>
+                    <AdminDashboard />
+                    {isAdmin && <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />}
+                  </>
+                ) : effectiveRole === 'doctor' ? (
+                  <>
+                    <DoctorDashboard />
+                    {isAdmin && <ViewSwitcher currentRole={role || 'doctor'} onRoleChange={setRole} />}
+                  </>
+                ) : (
+                  <>
+                    <PatientDashboard />
+                    {isAdmin && <ViewSwitcher currentRole={role || 'patient'} onRoleChange={setRole} />}
+                  </>
+                )}
+              </Suspense>
+            </PageTransition>
+          )}
+        </AnimatePresence>
+        <Suspense fallback={null}>
+          <EmergencySOS />
+        </Suspense>
+      </div>
+    </>
   );
 }
 
