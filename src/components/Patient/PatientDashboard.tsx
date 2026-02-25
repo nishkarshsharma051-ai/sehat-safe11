@@ -338,7 +338,7 @@ export default function PatientDashboard() {
       </div>
 
       {/* Stats Grid - Apple "Bento" Style */}
-      <StaggerContainer className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3 md:gap-4">
         {/* Large Primary Card */}
         <MotionItem className="col-span-2 row-span-2">
           <div
@@ -381,19 +381,19 @@ export default function PatientDashboard() {
         ].map((stat) => (
           <MotionItem key={stat.label} className="col-span-1">
             <GlassCard onClick={() => !isLoadingStats && setActiveView(stat.view)}
-              className={`p-5 h-40 flex flex-col justify-between cursor-pointer transition-colors group relative overflow-hidden ${isLoadingStats ? 'animate-pulse bg-gray-100/50 dark:bg-white/5' : 'hover:bg-white/80 dark:hover:bg-slate-800/80'
+              className={`p-4 md:p-5 h-36 md:h-40 flex flex-col justify-between cursor-pointer transition-colors group relative overflow-hidden ${isLoadingStats ? 'animate-pulse bg-gray-100/50 dark:bg-white/5' : 'hover:bg-white/80 dark:hover:bg-slate-800/80'
                 }`}>
               {!isLoadingStats ? (
                 <>
                   <div className="flex justify-between items-start">
-                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                      <stat.icon className="w-5 h-5" />
+                    <div className={`p-2 md:p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
+                      <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 dark:group-hover:text-gray-400 transition-colors" />
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 dark:group-hover:text-gray-400 transition-colors" />
                   </div>
                   <div>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
-                    <p className="text-sm text-gray-500 font-medium">{t(stat.label,
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
+                    <p className="text-[10px] md:text-sm text-gray-500 font-medium">{t(stat.label,
                       stat.label === 'Prescriptions' ? 'नुस्खे' :
                         stat.label === 'Appointments' ? 'अपॉइंटमेंट' :
                           stat.label === 'Reminders' ? 'रिमाइंडर' :
@@ -403,10 +403,10 @@ export default function PatientDashboard() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-slate-700"></div>
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gray-200 dark:bg-slate-700"></div>
                   <div className="space-y-2">
-                    <div className="h-6 w-12 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
-                    <div className="h-4 w-20 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
+                    <div className="h-5 w-10 md:h-6 md:w-12 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
+                    <div className="h-3 w-16 md:h-4 md:w-20 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
                   </div>
                 </div>
               )}
@@ -419,7 +419,7 @@ export default function PatientDashboard() {
       <div>
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 ml-1">{t('Quick Actions', 'त्वरित कार्रवाई')}</h3>
         <GlassCard className="p-2">
-          <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
             {[
               { label: 'Upload Files', hindiLabel: 'फ़ाइलें अपलोड करें', icon: FileText, color: 'bg-blue-500', view: 'prescriptions' as ViewType },
               { label: 'Add Records', hindiLabel: 'रिकॉर्ड जोड़ें', icon: Sparkles, color: 'bg-amber-500', action: () => setIsRecordModalOpen(true) },
@@ -442,14 +442,14 @@ export default function PatientDashboard() {
               <MotionItem key={action.label}>
                 <button
                   onClick={() => action.action ? action.action() : action.view ? setActiveView(action.view) : null}
-                  className="w-full p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center space-x-3 group text-left"
+                  className="w-full p-4 rounded-2xl md:rounded-2xl hover:bg-white/60 dark:hover:bg-white/5 transition-all flex items-center space-x-4 group text-left border border-transparent hover:border-indigo-500/10 active:scale-[0.98]"
                 >
-                  <div className={`w-10 h-10 rounded-xl ${action.color} flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform`}>
+                  <div className={`w-11 h-11 rounded-xl ${action.color} flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform`}>
                     <action.icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100">{t(action.label, action.hindiLabel)}</span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{t('Tap to open', 'खोलने के लिए टैप करें')}</span>
+                    <span className="block text-sm font-bold text-gray-900 dark:text-gray-100">{t(action.label, action.hindiLabel)}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">{t('Tap to expand', 'विस्तार के लिए टैप करें')}</span>
                   </div>
                 </button>
               </MotionItem>
@@ -471,7 +471,7 @@ export default function PatientDashboard() {
   let lastSection = '';
 
   return (
-    <div className="flex h-screen bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
 
       {/* Mobile Menu Toggle */}
       <div className="md:hidden fixed top-0 left-0 right-0 p-4 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-white/10 flex items-center justify-between">
@@ -605,7 +605,7 @@ export default function PatientDashboard() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-72 h-screen overflow-y-auto pt-20 md:pt-6 px-4 md:px-8 pb-8 scroll-smooth">
+      <main className="flex-1 md:ml-72 h-[100dvh] overflow-y-auto pt-20 md:pt-6 px-4 md:px-8 pb-8 scroll-smooth">
         <div className="max-w-6xl mx-auto">
           {renderView()}
         </div>

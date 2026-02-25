@@ -9,7 +9,7 @@ interface RoleSelectionProps {
 
 export default function RoleSelection({ onSelect }: RoleSelectionProps) {
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-slate-900 dark:to-slate-800">
             <div className="max-w-4xl w-full">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">

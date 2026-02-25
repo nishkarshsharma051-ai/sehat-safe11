@@ -64,7 +64,7 @@ export default function Login({ selectedRole, onBack }: LoginProps) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative">
+        <div className="min-h-[100dvh] flex items-center justify-center p-4 relative">
             {onBack && (
                 <button
                     onClick={onBack}

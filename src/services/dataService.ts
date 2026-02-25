@@ -375,6 +375,7 @@ const KEYS = {
 
 export const reminderService = {
     async getAll(patientId: string): Promise<MedicineReminder[]> {
+        if (!patientId || patientId === 'anonymous') return [];
         const res = await fetch(`${API_BASE_URL}/api/reminders?patientId=${patientId}`, {
             headers: getAuthHeaders()
         });
@@ -519,6 +520,7 @@ export const chatService = {
 
 export const healthProfileService = {
     async get(patientId: string): Promise<HealthProfile | null> {
+        if (!patientId || patientId === 'anonymous') return null;
         const res = await fetch(`${API_BASE_URL}/api/health-data/profile?patientId=${patientId}`, {
             headers: getAuthHeaders()
         });
@@ -581,6 +583,7 @@ export const healthEntryService = {
         }));
     },
     async getAll(patientId: string): Promise<HealthEntry[]> {
+        if (!patientId || patientId === 'anonymous') return [];
         const res = await fetch(`${API_BASE_URL}/api/health-data/entries?patientId=${patientId}`, {
             headers: getAuthHeaders()
         });
@@ -598,6 +601,7 @@ export const healthEntryService = {
         }));
     },
     async getByType(patientId: string, type: string): Promise<HealthEntry[]> {
+        if (!patientId || patientId === 'anonymous') return [];
         const res = await fetch(`${API_BASE_URL}/api/health-data/entries?patientId=${patientId}&type=${type}`, {
             headers: getAuthHeaders()
         });
@@ -773,6 +777,7 @@ export const familyService = {
 
 export const secureShareService = {
     async getAll(patientId: string): Promise<SecureShareLink[]> {
+        if (!patientId || patientId === 'anonymous') return [];
         const all = storage.get<SecureShareLink>(KEYS.SHARE_LINKS);
         return all.filter(l => l.patient_id === patientId);
     },
@@ -805,6 +810,7 @@ export const secureShareService = {
 
 export const hospitalFavoriteService = {
     async getAll(patientId: string): Promise<HospitalFavorite[]> {
+        if (!patientId || patientId === 'anonymous') return [];
         const res = await fetch(`${API_BASE_URL}/api/hospitals/favorites?patientId=${patientId}`, {
             headers: getAuthHeaders()
         });

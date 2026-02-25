@@ -165,8 +165,9 @@ export default function DoctorDashboard() {
 
   const loadHealthEntries = useCallback(async () => {
     try {
-      const data = await healthEntryService.getAllGlobal();
-      setHealthEntries(data);
+      // Avoid calling getAllGlobal to prevent 400 error. 
+      // Doctors should view a specific patient's timeline instead of all global health entries.
+      setHealthEntries([]);
     } catch (error) { console.error(error); }
   }, []);
 
@@ -229,27 +230,27 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <GlassCard className="p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-100 dark:border-indigo-500/20">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        <GlassCard className="p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-100 dark:border-indigo-500/20 active:scale-[0.98] transition-transform">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-indigo-500 rounded-xl"><Users className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">{allPatients.length}</span>
+            <div className="p-3 bg-indigo-500 rounded-2xl shadow-lg shadow-indigo-500/20"><Users className="w-5 h-5 text-white" /></div>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">{allPatients.length}</span>
           </div>
-          <p className="text-sm font-medium text-gray-500">Total Patients</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Patients</p>
         </GlassCard>
-        <GlassCard className="p-6 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-100 dark:border-emerald-500/20">
+        <GlassCard className="p-6 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-100 dark:border-emerald-500/20 active:scale-[0.98] transition-transform">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-emerald-500 rounded-xl"><Calendar className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</span>
+            <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><Calendar className="w-5 h-5 text-white" /></div>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.length}</span>
           </div>
-          <p className="text-sm font-medium text-gray-500">Upcoming</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Scheduled Today</p>
         </GlassCard>
-        <GlassCard className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-100 dark:border-amber-500/20">
+        <GlassCard className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-100 dark:border-amber-500/20 active:scale-[0.98] transition-transform sm:col-span-2 md:col-span-1">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2 bg-amber-500 rounded-xl"><Activity className="w-5 h-5 text-white" /></div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">{prescriptions.length}</span>
+            <div className="p-3 bg-amber-500 rounded-2xl shadow-lg shadow-amber-500/20"><Activity className="w-5 h-5 text-white" /></div>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">{prescriptions.length}</span>
           </div>
-          <p className="text-sm font-medium text-gray-500">Prescriptions</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Clinical Files</p>
         </GlassCard>
       </div>
 
@@ -293,40 +294,40 @@ export default function DoctorDashboard() {
           New Appointment
         </PremiumButton>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">
         {appointments.map(apt => (
-          <GlassCard key={apt.id} className="p-6 relative overflow-hidden group">
+          <GlassCard key={apt.id} className="p-5 md:p-6 relative overflow-hidden group hover:scale-[1.01] transition-transform active:scale-[0.99]">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-lg shadow-sm">
                   {apt.patient?.full_name?.charAt(0)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-800 dark:text-white">{apt.patient?.full_name}</h3>
-                  <p className="text-xs text-gray-500">{apt.patient?.phone}</p>
+                  <h3 className="font-bold text-gray-800 dark:text-white text-sm md:text-base">{apt.patient?.full_name}</h3>
+                  <p className="text-[10px] md:text-xs text-gray-500 font-medium">{apt.patient?.phone}</p>
                 </div>
               </div>
-              <NeumorphicBadge variant={apt.status === 'confirmed' ? 'success' : apt.status === 'pending' ? 'info' : 'neutral'}>
+              <NeumorphicBadge variant={apt.status === 'confirmed' ? 'success' : apt.status === 'pending' ? 'info' : 'neutral'} className="text-[10px]">
                 {apt.status}
               </NeumorphicBadge>
             </div>
             <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-white/5">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 flex items-center gap-2"><Calendar className="w-3.5 h-3.5" /> Date</span>
+              <div className="flex justify-between text-xs md:text-sm">
+                <span className="text-gray-500 flex items-center gap-2 font-medium"><Calendar className="w-3.5 h-3.5" /> Date</span>
                 <span className="font-bold text-gray-800 dark:text-white">{new Date(apt.appointment_date).toLocaleDateString()}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500 flex items-center gap-2"><Clock className="w-3.5 h-3.5" /> Time</span>
+              <div className="flex justify-between text-xs md:text-sm">
+                <span className="text-gray-500 flex items-center gap-2 font-medium"><Clock className="w-3.5 h-3.5" /> Time</span>
                 <span className="font-bold text-gray-800 dark:text-white">{new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-black/20 p-3 rounded-xl mt-2">"{apt.reason}"</p>
+              <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-black/20 p-3 rounded-xl mt-2 font-medium italic">"{apt.reason}"</p>
             </div>
             <div className="mt-6 flex gap-3">
               {apt.status === 'pending' && (
-                <PremiumButton className="flex-1" size="sm" onClick={() => updateAppointmentStatus(apt.id, 'confirmed')}>Approve</PremiumButton>
+                <PremiumButton className="flex-1 text-xs py-3" size="sm" onClick={() => updateAppointmentStatus(apt.id, 'confirmed')}>Approve</PremiumButton>
               )}
               {apt.status !== 'completed' && (
-                <button onClick={() => updateAppointmentStatus(apt.id, 'completed')} className="flex-1 py-2 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl hover:bg-emerald-100 transition-all">Mark Complete</button>
+                <button onClick={() => updateAppointmentStatus(apt.id, 'completed')} className="flex-1 py-3 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl hover:bg-emerald-100 active:bg-emerald-200 transition-all">Mark Complete</button>
               )}
             </div>
           </GlassCard>
@@ -445,7 +446,7 @@ export default function DoctorDashboard() {
 
 
   return (
-    <div className="flex h-screen bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-72 bg-gray-100/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-white/10
         transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out
@@ -491,7 +492,7 @@ export default function DoctorDashboard() {
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-72 h-screen overflow-y-auto p-4 md:p-8">
+      <main className="flex-1 md:ml-72 h-[100dvh] overflow-y-auto p-4 md:p-8">
         <div className="max-w-6xl mx-auto pt-12 md:pt-0">
           {renderContent()}
         </div>

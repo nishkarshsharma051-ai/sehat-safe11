@@ -28,7 +28,7 @@ export default function EmergencyProfile() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-rose-50 flex items-center justify-center">
+            <div className="min-h-[100dvh] bg-rose-50 flex items-center justify-center">
                 <motion.div
                     animate={{ scale: [1, 1.1, 1] }}
                     transition={{ repeat: Infinity, duration: 1.5 }}
@@ -42,7 +42,7 @@ export default function EmergencyProfile() {
 
     if (error || !profile) {
         return (
-            <div className="min-h-screen bg-rose-50 p-6 flex flex-col items-center justify-center text-center">
+            <div className="min-h-[100dvh] bg-rose-50 p-6 flex flex-col items-center justify-center text-center">
                 <AlertTriangle size={64} className="text-rose-500 mb-4" />
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Emergency Profile Not Found</h1>
                 <p className="text-gray-600 mb-6">Unable to retrieve critical medical information for this patient ID.</p>
@@ -54,7 +54,7 @@ export default function EmergencyProfile() {
     }
 
     return (
-        <div className="min-h-screen bg-[#F2F2F7] p-4 md:p-8 font-sans">
+        <div className="min-h-[100dvh] bg-[#F2F2F7] p-4 md:p-8 font-sans">
             <div className="max-w-xl mx-auto space-y-6">
                 {/* Emergency Header */}
                 <div className="bg-rose-600 text-white p-6 rounded-[2.5rem] shadow-xl shadow-rose-600/20 text-center relative overflow-hidden">
