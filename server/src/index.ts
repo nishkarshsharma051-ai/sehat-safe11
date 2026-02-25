@@ -61,10 +61,8 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/schemes', schemeRoutes);
 
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(port, () => {
-        console.log(`Server is running at http://localhost:${port}`);
-    });
-}
+app.listen(port, () => {
+    console.log(`Server is running at http://localhost:${port}`);
+});
 
 export default app;
