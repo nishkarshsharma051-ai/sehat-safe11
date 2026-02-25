@@ -101,7 +101,7 @@ export default function EmergencySOS() {
             <motion.button
                 layout
                 onClick={() => setIsOpen(!isOpen)}
-                className="fixed bottom-6 right-6 z-[999] group outline-none focus:outline-none"
+                className="fixed bottom-6 right-6 z-[999] group outline-none focus:outline-none w-16 h-16"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 aria-label="Emergency SOS"

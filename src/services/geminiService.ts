@@ -190,5 +190,60 @@ ${JSON.stringify(patientProfile, null, 2)}
 
 Provide a concise, formal medical justification (2-3 paragraphs) that explains why preferred alternatives have failed or are contraindicated, and why this specific medication is medically necessary. No markdown headers.`;
 
+
     return getGeminiResponse(prompt);
+}
+
+/** Simulate Grok NLP parsing unstructured texts, EMRs, and Wearables into structured events */
+export async function extractHealthEventsFromSource(
+    sourceData: string,
+    sourceType: 'text' | 'photo' | 'wearable' | 'emr'
+): Promise<any[]> {
+    const prompt = `You are an advanced medical NLP engine (like Grok Health). Parse the following unstructured raw data coming from a ${sourceType} and extract all chronological health events.
+Return the result STRICTLY as a JSON array of objects with these keys:
+- date (ISO string, estimate if relative like "yesterday")
+- title (Short, concise title of the event like "Reported Headache" or "Apple Watch BP Spike")
+- description (1-2 sentences explaining the event or symptoms)
+- category ('symptom', 'vitals', 'activity', 'medication', or 'diagnosis')
+- ai_insight (A brief medical insight or warning flag if applicable, otherwise empty string)
+
+Raw Data (${sourceType}):
+"""
+${sourceData}
+"""
+
+Ensure the output is valid JSON. Do not include markdown codeblocks (\`\`\`json).`;
+
+    try {
+        // Since we don't have a real backend chat completion setup passing arbitrary prompts easily without history formatting
+        // Let's use getGeminiResponse (which right now proxies or falls back).
+        // For the sake of the demo, we'll try to get it from the API.
+        const responseText = await getGeminiResponse(prompt);
+        let cleaned = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        // Handle potential parsing failures from raw AI output
+        if (!cleaned.startsWith('[')) {
+            // Trim until first bracket
+            const bracketIndex = cleaned.indexOf('[');
+            if (bracketIndex !== -1) cleaned = cleaned.substring(bracketIndex);
+        }
+
+        return JSON.parse(cleaned);
+    } catch (err) {
+        console.error('Failed to extract health events from source', err);
+        // Return mock data fallback if API fails
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
+        return [
+            {
+                date: yesterday.toISOString(),
+                title: `Parsed from ${sourceType}`,
+                description: 'Failed to connect to AI parser, using mock extraction.',
+                category: 'activity',
+                ai_insight: 'AI Extraction offline.'
+            }
+        ];
+    }
 }

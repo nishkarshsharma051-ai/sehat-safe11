@@ -5,7 +5,7 @@ import {
     Prescription, Appointment, MedicineReminder, ChatMessage,
     Doctor, HealthProfile, HealthEntry, InsuranceRecord,
     FamilyMember, SecureShareLink, HospitalFavorite, UserProfile,
-    Medicine, Scheme, HealthPlan, PatientActivePlan
+    Medicine, Scheme, HealthPlan, PatientActivePlan, TimelineEvent
 } from '../types';
 import { API_BASE_URL } from '../config';
 
@@ -370,6 +370,7 @@ const KEYS = {
     FAMILY: 'sehat_safe_family_members',
     SHARE_LINKS: 'sehat_safe_share_links',
     HOSPITAL_FAVORITES: 'sehat_safe_hospital_favorites',
+    TIMELINE_EVENTS: 'sehat_safe_timeline_events',
 };
 
 export const reminderService = {
@@ -909,5 +910,117 @@ export const healthPlanService = {
         });
         if (!res.ok) throw new Error('Failed to complete activity');
         return res.json();
+    }
+};
+
+export const workloadService = {
+    async get(doctorId: string) {
+        const res = await fetch(`${API_BASE_URL}/api/workload/${doctorId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to fetch workload');
+        return res.json();
+    }
+};
+
+export const schedulingService = {
+    async getColleagues(doctorId: string) {
+        const res = await fetch(`${API_BASE_URL}/api/scheduling/colleagues/${doctorId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    },
+
+    async requestSwap(data: { requesterId: string, targetDoctorId: string, shiftDate: string, notes?: string }) {
+        const res = await fetch(`${API_BASE_URL}/api/scheduling/swap`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to request swap');
+        return res.json();
+    },
+
+    async getSwaps(doctorId: string) {
+        const res = await fetch(`${API_BASE_URL}/api/scheduling/swaps/${doctorId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    }
+};
+
+export const affiliateService = {
+    async getAll(filters?: { type?: string; query?: string; lat?: number; lng?: number; radius?: number }) {
+        const params = new URLSearchParams();
+        if (filters?.type) params.append('type', filters.type);
+        if (filters?.query) params.append('query', filters.query);
+        if (filters?.lat) params.append('lat', filters.lat.toString());
+        if (filters?.lng) params.append('lng', filters.lng.toString());
+        if (filters?.radius) params.append('radius', filters.radius.toString());
+
+        const res = await fetch(`${API_BASE_URL}/api/affiliates?${params.toString()}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    },
+
+    async getById(id: string) {
+        const res = await fetch(`${API_BASE_URL}/api/affiliates/${id}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return null;
+        return res.json();
+    }
+};
+export const symptomService = {
+    async getAll(patientId: string): Promise<any[]> {
+        const res = await fetch(`${API_BASE_URL}/api/health-data/symptoms?patientId=${patientId}`, {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) return [];
+        return res.json();
+    },
+    async add(patientId: string, symptoms: Array<{ name: string; severity: number; notes?: string }>) {
+        const res = await fetch(`${API_BASE_URL}/api/health-data/symptoms`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ patientId, symptoms })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to add symptom log');
+        }
+        return res.json();
+    }
+};
+
+export const emergencyService = {
+    async getPublicProfile(patientId: string): Promise<any> {
+        const res = await fetch(`${API_BASE_URL}/api/health-data/emergency/${patientId}`);
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to fetch emergency profile');
+        }
+        return res.json();
+    }
+};
+
+export const timelineService = {
+    async getAll(patientId: string): Promise<TimelineEvent[]> {
+        const all = storage.get<TimelineEvent>(KEYS.TIMELINE_EVENTS);
+        return all.filter(e => e.patient_id === patientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    async addMultiple(events: TimelineEvent[]) {
+        const all = storage.get<TimelineEvent>(KEYS.TIMELINE_EVENTS);
+        // Ensure IDs exist
+        const newEvents = events.map(e => ({ ...e, id: e.id || Date.now().toString() + Math.random().toString(36).substring(2, 7) }));
+        storage.set(KEYS.TIMELINE_EVENTS, [...all, ...newEvents]);
+    },
+    async clear(patientId: string) {
+        const all = storage.get<TimelineEvent>(KEYS.TIMELINE_EVENTS);
+        storage.set(KEYS.TIMELINE_EVENTS, all.filter(e => e.patient_id !== patientId));
     }
 };

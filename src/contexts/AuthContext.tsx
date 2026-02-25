@@ -49,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const response = await fetch(`${API_BASE_URL}/api/auth/verify`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: firebaseUser.email })
+                        body: JSON.stringify({
+                            email: firebaseUser.email,
+                            firebaseUid: firebaseUser.uid
+                        })
                     });
 
                     if (response.ok) {
@@ -90,70 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signInWithGoogle = async () => {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
-
-        // SYNC with backend to get/set role
         try {
-            // Verify/Create user in backend
-            // We use the localStorage selected role if any, to try and register them
-            const selectedRole = localStorage.getItem('sehat_safe_selected_role');
-
-            // If user exists, verify will return existing role.
-            // If user doesn't exist, we might need a way to 'register' via google on backend.
-            // Let's try 'verify' first.
-            const verifyRes = await fetch(`${API_BASE_URL}/api/auth/verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email })
-            });
-
-            if (verifyRes.ok) {
-                // User exists, use their role and ID
-                const data = await verifyRes.json();
-                const backendUser: BackendUser = {
-                    uid: data.user.id, // Use MongoDB _id
-                    email: data.user.email,
-                    displayName: data.user.name,
-                    role: data.user.role,
-                    isBackend: true,
-                    token: data.token
-                };
-                setUser(backendUser);
-                setToken(data.token);
-                localStorage.setItem('backend_user', JSON.stringify(backendUser));
-                localStorage.setItem('auth_token', data.token);
-            } else {
-                // User does not exist in backend -> Register with selected role
-                const regRes = await fetch(`${API_BASE_URL}/api/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: user.email,
-                        name: user.displayName,
-                        role: selectedRole || 'patient', // Fallback
-                        firebaseUid: user.uid
-                    })
-                });
-
-                if (regRes.ok) {
-                    const data = await regRes.json();
-                    const backendUser: BackendUser = {
-                        uid: data.user.id, // Use MongoDB _id
-                        email: data.user.email,
-                        displayName: data.user.name,
-                        role: data.user.role, // This is the PERMANENT role
-                        isBackend: true,
-                        token: data.token
-                    };
-                    setUser(backendUser);
-                    setToken(data.token);
-                    localStorage.setItem('backend_user', JSON.stringify(backendUser));
-                    localStorage.setItem('auth_token', data.token);
-                }
-            }
+            await signInWithPopup(auth, googleProvider);
+            // State will be updated by onAuthStateChanged listener
         } catch (e) {
-            console.error("Google Sign In Sync Error", e);
+            console.error("Google Sign In Error", e);
+            throw e;
         }
     };
 

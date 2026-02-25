@@ -15,14 +15,14 @@ const DoctorDashboard = lazy(() => import('./components/Doctor/DoctorDashboard')
 const EmergencySOS = lazy(() => import('./components/Emergency/EmergencySOS'));
 const AdminDashboard = lazy(() => import('./components/Admin/AdminDashboard'));
 const ViewSwitcher = lazy(() => import('./components/Admin/ViewSwitcher'));
+const EmergencyProfile = lazy(() => import('./pages/EmergencyProfile'));
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 function LoadingSpinner() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-14 h-14 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-600 font-medium">Loading...</p>
-      </div>
+    <div className="initial-loader">
+      <div className="spinner"></div>
+      <p className="loading-text">Sehat Safe is loading...</p>
     </div>
   );
 }
@@ -118,44 +118,34 @@ function AppContent() {
     return <LoadingSpinner />;
   }
 
-  if (effectiveRole === 'admin') {
-    return (
-      <PageTransition key="admin-dashboard">
-        <Suspense fallback={<LoadingSpinner />}>
-          <AdminDashboard />
-          <EmergencySOS />
-          {isAdmin && (
-            <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />
-          )}
-        </Suspense>
-      </PageTransition>
-    );
-  }
-
-  if (effectiveRole === 'doctor') {
-    return (
-      <PageTransition key="doctor-dashboard">
-        <Suspense fallback={<LoadingSpinner />}>
-          <DoctorDashboard />
-          <EmergencySOS />
-          {isAdmin && (
-            <ViewSwitcher currentRole={role || 'doctor'} onRoleChange={setRole} />
-          )}
-        </Suspense>
-      </PageTransition>
-    );
-  }
-
   return (
-    <PageTransition key="patient-dashboard">
-      <Suspense fallback={<LoadingSpinner />}>
-        <PatientDashboard />
+    <div className="min-h-screen relative overflow-x-hidden">
+      <AnimatePresence mode="wait">
+        <PageTransition key={effectiveRole || 'guest'} className="min-h-screen">
+          <Suspense fallback={<LoadingSpinner />}>
+            {effectiveRole === 'admin' ? (
+              <>
+                <AdminDashboard />
+                {isAdmin && <ViewSwitcher currentRole={role || 'admin'} onRoleChange={setRole} />}
+              </>
+            ) : effectiveRole === 'doctor' ? (
+              <>
+                <DoctorDashboard />
+                {isAdmin && <ViewSwitcher currentRole={role || 'doctor'} onRoleChange={setRole} />}
+              </>
+            ) : (
+              <>
+                <PatientDashboard />
+                {isAdmin && <ViewSwitcher currentRole={role || 'patient'} onRoleChange={setRole} />}
+              </>
+            )}
+          </Suspense>
+        </PageTransition>
+      </AnimatePresence>
+      <Suspense fallback={null}>
         <EmergencySOS />
-        {isAdmin && (
-          <ViewSwitcher currentRole={role || 'patient'} onRoleChange={setRole} />
-        )}
       </Suspense>
-    </PageTransition>
+    </div>
   );
 }
 
@@ -164,9 +154,18 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <LanguageProvider>
-          <AnimatePresence mode="wait">
-            <AppContent />
-          </AnimatePresence>
+          <Router>
+            <AnimatePresence mode="wait">
+              <Routes>
+                <Route path="/emergency/:patientId" element={
+                  <Suspense fallback={<LoadingSpinner />}>
+                    <EmergencyProfile />
+                  </Suspense>
+                } />
+                <Route path="*" element={<AppContent />} />
+              </Routes>
+            </AnimatePresence>
+          </Router>
         </LanguageProvider>
       </AuthProvider>
     </ThemeProvider>

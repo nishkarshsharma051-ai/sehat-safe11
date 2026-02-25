@@ -1,29 +1,30 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Calendar, Users, Clock, Stethoscope, ClipboardList, Search,
-  LogOut, Sun, Moon, LayoutDashboard, Settings, Sparkles, Brain,
-  X, ChevronRight, Activity, Download, PlusCircle
+  LogOut, Sun, Moon, LayoutDashboard, Settings, Sparkles,
+  X, ChevronRight, Activity, Download, BarChart3, Building2
 } from 'lucide-react';
 import { GlassCard } from '../ui/GlassCard';
 import { PremiumButton } from '../ui/PremiumButton';
 import { NeumorphicBadge } from '../ui/NeumorphicBadge';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Appointment, Prescription, HealthEntry } from '../../types';
+import { Appointment, Prescription, HealthEntry, Patient } from '../../types';
 import { appointmentService, patientService, doctorService, prescriptionService, healthEntryService } from '../../services/dataService';
-import { getGeminiResponse } from '../../services/geminiService';
 import { AnimatePresence, motion } from 'framer-motion';
 import { API_BASE_URL } from '../../config';
+import DoctorWorkloadDashboard from './DoctorWorkloadDashboard';
+import DoctorNetworkIntegration from './DoctorNetworkIntegration';
 import PatientIntelligenceHub from './PatientIntelligenceHub';
 import MedicalRecordUploadModal from '../Patient/MedicalRecordUploadModal';
 
-type ViewType = 'overview' | 'appointments' | 'patients' | 'records' | 'settings' | 'intelligence';
+type ViewType = 'overview' | 'appointments' | 'patients' | 'records' | 'settings' | 'workload' | 'network' | 'intelligence';
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'intelligence', label: 'Intelligence Hub', icon: Brain },
+  { id: 'workload', label: 'Load Balance', icon: BarChart3 },
+  { id: 'intelligence', label: 'Intelligence Hub', icon: Sparkles },
+  { id: 'network', label: 'My Network', icon: Building2 },
   { id: 'appointments', label: 'Schedule', icon: Calendar },
   { id: 'patients', label: 'My Patients', icon: Users },
   { id: 'records', label: 'Medical Records', icon: ClipboardList },
@@ -51,9 +52,6 @@ export default function DoctorDashboard() {
   const [healthEntries, setHealthEntries] = useState<HealthEntry[]>([]);
   const [recordsSearch, setRecordsSearch] = useState('');
   const [patientSearch, setPatientSearch] = useState('');
-  const [showAiModal, setShowAiModal] = useState(false);
-  const [aiBriefing, setAiBriefing] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
 
   // Record Upload State
@@ -65,7 +63,7 @@ export default function DoctorDashboard() {
   const [activeTab, setActiveTab] = useState<'register' | 'book'>('register');
   const [manualPatient, setManualPatient] = useState({ full_name: '', age: '', gender: 'male' as any, phone: '' });
   const [manualAppointment, setManualAppointment] = useState({ patient_id: '', date: '', time: '', reason: '' });
-  const [allPatients, setAllPatients] = useState<{ id: string; full_name: string; phone?: string; name?: string }[]>([]);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
 
   // Settings State
   const [profileData, setProfileData] = useState({
@@ -147,7 +145,7 @@ export default function DoctorDashboard() {
   const loadPatients = useCallback(async () => {
     try {
       const patients = await patientService.getAll();
-      setAllPatients(patients);
+      setAllPatients(patients as Patient[]);
     } catch (error) { console.error(error); }
   }, []);
 
@@ -178,22 +176,6 @@ export default function DoctorDashboard() {
     [appointments]
   );
 
-  const loadAiBriefing = useCallback(async () => {
-    if (aiBriefing) return;
-    setIsAiLoading(true);
-    try {
-      const stats = `Total patients: ${allPatients.length}, Appointments today: ${upcomingAppointments.length}`;
-      const prompt = `You are a medical assistant. Provide a very concise 3-sentence summary briefing for a doctor based on these stats for the day: ${stats}. Focus on efficiency and patient care.`;
-      const response = await getGeminiResponse(prompt);
-      setAiBriefing(response);
-    } catch (error) {
-      console.error('Briefing error:', error);
-      setAiBriefing("Could not load briefing. Have a great day, Doctor!");
-    } finally {
-      setIsAiLoading(false);
-    }
-  }, [allPatients.length, upcomingAppointments.length, aiBriefing]);
-
   useEffect(() => {
     loadAppointments();
     loadPatients();
@@ -210,7 +192,7 @@ export default function DoctorDashboard() {
     e.preventDefault();
     try {
       const newPatient = await patientService.addManual(manualPatient);
-      setAllPatients(prev => [...prev, { ...newPatient, full_name: newPatient.full_name }]);
+      setAllPatients(prev => [...prev, { ...newPatient, full_name: newPatient.full_name, name: newPatient.full_name } as Patient]);
       setManualAppointment(prev => ({ ...prev, patient_id: newPatient.id }));
       setActiveTab('book');
     } catch (err) { alert('Failed to register patient'); }
@@ -245,16 +227,6 @@ export default function DoctorDashboard() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome, Dr. {profileData.name.split(' ')[0]}</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">You have {upcomingAppointments.length} appointments today.</p>
         </div>
-        <PremiumButton
-          variant="primary"
-          onClick={() => {
-            setShowAiModal(true);
-            loadAiBriefing();
-          }}
-          className="flex items-center gap-2"
-        >
-          <Sparkles className="w-4 h-4" /> Daily Briefing
-        </PremiumButton>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -309,30 +281,6 @@ export default function DoctorDashboard() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-500" /> AI Insights
-            </h3>
-          </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-200/50 dark:border-indigo-500/20">
-              <p className="text-sm text-indigo-700 dark:text-indigo-300 leading-relaxed">
-                "Looks like 3 patients have fluctuating blood pressure today. Consider reviewing their medication adherence in the Intelligence Hub."
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <GlassCard className="flex-1 p-4 text-center cursor-pointer hover:bg-white/40 transition-all border-dashed border-2 border-indigo-200 dark:border-indigo-800/50" onClick={() => setShowManualModal(true)}>
-                <PlusCircle className="w-6 h-6 mx-auto mb-2 text-indigo-500" />
-                <p className="text-xs font-bold text-gray-500">Quick Entry</p>
-              </GlassCard>
-              <GlassCard className="flex-1 p-4 text-center cursor-pointer hover:bg-white/40 transition-all border-dashed border-2 border-purple-200 dark:border-purple-800/50" onClick={() => setCurrentView('intelligence')}>
-                <Brain className="w-6 h-6 mx-auto mb-2 text-purple-500" />
-                <p className="text-xs font-bold text-gray-500">Smart Audit</p>
-              </GlassCard>
-            </div>
-          </div>
-        </GlassCard>
       </div>
     </div>
   );
@@ -399,7 +347,7 @@ export default function DoctorDashboard() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {filteredPatients.map(p => (
-          <GlassCard key={p.id} className="p-5 flex items-center space-x-4 hover:shadow-xl transition-all group cursor-pointer" onClick={() => { setSelectedPatientId(p.id); setCurrentView('intelligence'); }}>
+          <GlassCard key={p.id} className="p-5 flex items-center space-x-4 hover:shadow-xl transition-all group cursor-pointer" onClick={() => setCurrentView('records')}>
             <div className="w-14 h-14 rounded-2xl bg-indigo-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/30">
               {(p.full_name || p.name || 'P')[0].toUpperCase()}
             </div>
@@ -487,24 +435,14 @@ export default function DoctorDashboard() {
       case 'appointments': return renderAppointments();
       case 'patients': return renderPatients();
       case 'records': return renderRecords();
-      case 'intelligence': return (
-        <PatientIntelligenceHub
-          patients={allPatients.map(p => ({ ...p, name: p.full_name || p.name }))}
-          allAppointments={appointments}
-          allPrescriptions={prescriptions}
-        />
-      );
+      case 'workload': return <DoctorWorkloadDashboard />;
+      case 'intelligence': return <PatientIntelligenceHub />;
+      case 'network': return <DoctorNetworkIntegration />;
       default: return renderOverview();
     }
   };
 
-  // State to pass to intelligence hub
-  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  useEffect(() => {
-    if (selectedPatientId && currentView !== 'intelligence') {
-      setCurrentView('intelligence');
-    }
-  }, [selectedPatientId, currentView]);
+
 
   return (
     <div className="flex h-screen bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
@@ -620,43 +558,13 @@ export default function DoctorDashboard() {
             <select value={uploadPatientId} onChange={e => setUploadPatientId(e.target.value)}
               className="w-full p-4 rounded-2xl bg-white dark:bg-black border border-indigo-100 dark:border-white/10 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm font-bold">
               <option value="">-- Choose Patient for AI Processing --</option>
-              {allPatients.map(p => (
+              {allPatients.map(p => p && (
                 <option key={p.id} value={p.id}>{p.full_name || p.name}</option>
               ))}
             </select>
           </div>
         )}
       </MedicalRecordUploadModal>
-
-      {/* Daily Briefing Modal */}
-      <AnimatePresence>
-        {showAiModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-[#1C1C1E] rounded-[3rem] w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10">
-              <div className="p-8 bg-indigo-600 flex items-center justify-between">
-                <div className="flex items-center gap-4 text-white">
-                  <Brain className="w-8 h-8" />
-                  <h3 className="text-2xl font-bold">Daily Medical Briefing</h3>
-                </div>
-                <button onClick={() => setShowAiModal(false)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full text-white"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="p-10 overflow-y-auto custom-scrollbar min-h-[400px]">
-                {isAiLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 space-y-6">
-                    <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-indigo-500 font-bold uppercase tracking-wide animate-pulse">Running Scheduling Audit...</p>
-                  </div>
-                ) : (
-                  <div className="prose prose-indigo dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiBriefing || "Ready to audit your day, Doctor."}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Manual Entry Modal */}
       <AnimatePresence>

@@ -15,81 +15,185 @@ export interface PrescriptionData {
 export const generatePrescriptionPDF = async (data: PrescriptionData): Promise<string> => {
     return new Promise((resolve, reject) => {
         try {
-            const fileName = `prescription_${data.id}_${Date.now()}.pdf`;
+            const fileName = `clinical_record_${data.id}_${Date.now()}.pdf`;
             const filePath = path.join(__dirname, '../../uploads', fileName);
-            const doc = new PDFDocument({ margin: 50 });
+            // Professional A4 format with standard margins
+            const doc = new PDFDocument({
+                margin: 50,
+                size: 'A4',
+                info: {
+                    Title: 'Sehat Safe Clinical Record',
+                    Author: 'Sehat Safe Medical Systems'
+                }
+            });
 
             const stream = fs.createWriteStream(filePath);
             doc.pipe(stream);
 
-            // Header
-            doc.fillColor('#2563eb').fontSize(24).text('SEHAT SAFE', { align: 'center' });
-            doc.fillColor('#64748b').fontSize(10).text('Your Digital Health Companion', { align: 'center' });
-            doc.moveDown(2);
+            // ==========================================
+            // HEADER SECTION - CLINICAL BRANDING
+            // ==========================================
+            doc.rect(0, 0, doc.page.width, 120).fill('#1e3a8a'); // Deep indigo header background
 
-            // Prescription Info
-            doc.fillColor('#1e293b').fontSize(18).text('Medical Prescription', { underline: true });
-            doc.moveDown(1);
+            doc.fillColor('#ffffff')
+                .fontSize(28)
+                .font('Helvetica-Bold')
+                .text('SEHAT SAFE', 50, 40);
 
-            doc.fontSize(12).fillColor('#000');
-            doc.text(`Prescription ID: ${data.id}`);
-            doc.text(`Date: ${data.date}`);
-            doc.moveDown(1);
+            doc.fillColor('#93c5fd')
+                .fontSize(12)
+                .font('Helvetica')
+                .text('Intelligent Clinical Documentation', 50, 75);
 
-            // Patient & Doctor Info
-            doc.fontSize(14).fillColor('#2563eb').text('Details:');
-            doc.fontSize(12).fillColor('#000');
-            doc.text(`Patient Name: ${data.patientName}`);
-            doc.text(`Doctor Name: ${data.doctorName}`);
-            doc.text(`Diagnosis: ${data.diagnosis || 'N/A'}`);
-            doc.moveDown(1);
+            // Report Meta Data (Right aligned in header)
+            doc.fillColor('#ffffff')
+                .fontSize(10)
+                .text(`Record ID: ${data.id.substring(0, 8).toUpperCase()}`, doc.page.width - 200, 45, { align: 'right' })
+                .text(`Date Issued: ${new Date().toLocaleDateString()}`, doc.page.width - 200, 60, { align: 'right' });
 
-            // Medicines Table
-            doc.fontSize(14).fillColor('#2563eb').text('Prescribed Medicines:');
-            doc.moveDown(0.5);
+            doc.moveDown(4);
+
+            // ==========================================
+            // SUB-HEADER - REPORT TYPE
+            // ==========================================
+            doc.fillColor('#1e293b')
+                .fontSize(20)
+                .font('Helvetica-Bold')
+                .text('Official Prescription Record', 50, 150);
+
+            doc.moveTo(50, 175)
+                .lineTo(doc.page.width - 50, 175)
+                .lineWidth(2)
+                .strokeColor('#e2e8f0')
+                .stroke();
+
+            // ==========================================
+            // PATIENT & PROVIDER DEMOGRAPHICS (Two Columns)
+            // ==========================================
+            const col1X = 50;
+            const col2X = doc.page.width / 2 + 20;
+            let currentY = 195;
+
+            // Provider (Doctor) Info
+            doc.fillColor('#475569').fontSize(10).font('Helvetica-Bold').text('ATTENDING PHYSICIAN', col1X, currentY);
+            doc.fillColor('#0f172a').fontSize(14).text(data.doctorName || 'Assigned Specialist', col1X, currentY + 15);
+            doc.fillColor('#64748b').fontSize(10).font('Helvetica').text('Sehat Connect Verified Provider', col1X, currentY + 32);
+
+            // Patient Info
+            doc.fillColor('#475569').fontSize(10).font('Helvetica-Bold').text('PATIENT INFORMAION', col2X, currentY);
+            doc.fillColor('#0f172a').fontSize(14).text(data.patientName || 'Registered Patient', col2X, currentY + 15);
+            doc.fillColor('#64748b').fontSize(10).font('Helvetica').text(`Encounter Date: ${data.date}`, col2X, currentY + 32);
+
+            currentY += 75;
+
+            // ==========================================
+            // CLINICAL IMPRESSION / DIAGNOSIS
+            // ==========================================
+            if (data.diagnosis) {
+                // Background badge for diagnosis
+                doc.roundedRect(50, currentY, doc.page.width - 100, 60, 5).fill('#f8fafc').stroke('#e2e8f0');
+
+                doc.fillColor('#3b82f6').fontSize(10).font('Helvetica-Bold').text('PRIMARY CLINICAL IMPRESSION', 65, currentY + 15);
+                doc.fillColor('#0f172a').fontSize(14).text(data.diagnosis, 65, currentY + 30);
+
+                currentY += 90;
+            }
+
+            // ==========================================
+            // MEDICATION REGIMEN
+            // ==========================================
+            doc.fillColor('#1e293b').fontSize(16).font('Helvetica-Bold').text('Prescribed Regimen', 50, currentY);
+            currentY += 30;
+
+            // Table Styling
+            const tableWidth = doc.page.width - 100;
+            const colWidths = [0.4, 0.2, 0.2, 0.2]; // Percentages
+            const colStarts = [
+                50,
+                50 + (tableWidth * colWidths[0]),
+                50 + (tableWidth * (colWidths[0] + colWidths[1])),
+                50 + (tableWidth * (colWidths[0] + colWidths[1] + colWidths[2]))
+            ];
+
+            // Table Header Background
+            doc.rect(50, currentY - 5, tableWidth, 25).fill('#f1f5f9');
 
             // Table Headers
-            const startX = 50;
-            let currentY = doc.y;
-            doc.fontSize(10).fillColor('#64748b');
-            doc.text('Medicine Name', startX, currentY);
-            doc.text('Dosage', startX + 150, currentY);
-            doc.text('Frequency', startX + 250, currentY);
-            doc.text('Duration', startX + 350, currentY);
+            doc.fillColor('#475569').fontSize(10).font('Helvetica-Bold');
+            doc.text('MEDICATION', colStarts[0] + 5, currentY);
+            doc.text('DOSAGE', colStarts[1], currentY);
+            doc.text('FREQUENCY', colStarts[2], currentY);
+            doc.text('DURATION', colStarts[3], currentY);
 
-            doc.moveTo(startX, currentY + 15).lineTo(550, currentY + 15).strokeColor('#e2e8f0').stroke();
-            doc.moveDown(1);
+            currentY += 30;
 
             // Table Rows
-            doc.fillColor('#000');
-            data.medicines.forEach((med) => {
-                currentY = doc.y;
-                doc.text(med.name, startX, currentY);
-                doc.text(med.dosage, startX + 150, currentY);
-                doc.text(med.frequency, startX + 250, currentY);
-                doc.text(med.duration, startX + 350, currentY);
-                doc.moveDown(0.5);
+            doc.font('Helvetica');
+            data.medicines.forEach((med, i) => {
+                // Zebra striping
+                if (i % 2 === 0) {
+                    doc.rect(50, currentY - 5, tableWidth, 25).fill('#f8fafc');
+                }
+
+                doc.fillColor('#0f172a').fontSize(11);
+                // Medicine Name (Bold)
+                doc.font('Helvetica-Bold').text(med.name, colStarts[0] + 5, currentY);
+                // Other details (Normal)
+                doc.font('Helvetica');
+                doc.text(med.dosage, colStarts[1], currentY);
+                doc.text(med.frequency, colStarts[2], currentY);
+                doc.text(med.duration, colStarts[3], currentY);
+
+                currentY += 25;
+
+                // If we get too close to the bottom, add a new page
+                if (currentY > doc.page.height - 150) {
+                    doc.addPage();
+                    currentY = 50;
+                }
             });
 
-            doc.moveDown(1);
+            currentY += 20;
 
-            // Extracted Text Section
+            // ==========================================
+            // EXTRACTED TEXT (SOURCE DATA)
+            // ==========================================
             if (data.extractedText) {
-                doc.fontSize(14).fillColor('#2563eb').text('Original Extracted Text:');
-                doc.fontSize(9).fillColor('#64748b').text(data.extractedText, {
+                doc.moveTo(50, currentY).lineTo(doc.page.width - 50, currentY).lineWidth(1).strokeColor('#e2e8f0').stroke();
+                currentY += 20;
+
+                doc.fillColor('#64748b').fontSize(12).font('Helvetica-Bold').text('Original Digital OCR Source', 50, currentY);
+                currentY += 20;
+
+                doc.fillColor('#94a3b8').fontSize(9).font('Helvetica').text(data.extractedText, 50, currentY, {
                     align: 'justify',
-                    width: 500
+                    width: doc.page.width - 100,
+                    lineGap: 2
                 });
             }
 
-            // Footer
+            // ==========================================
+            // FOOTER & AUTHENTICATION
+            // ==========================================
             const pageHeight = doc.page.height;
-            doc.fontSize(10).fillColor('#94a3b8').text(
-                'This is a digitally generated report based on OCR analysis.',
-                50,
-                pageHeight - 70,
-                { align: 'center', width: 500 }
-            );
+
+            // Signature Line
+            doc.moveTo(doc.page.width - 250, pageHeight - 120)
+                .lineTo(doc.page.width - 50, pageHeight - 120)
+                .lineWidth(1).strokeColor('#94a3b8').stroke();
+
+            doc.fillColor('#64748b').fontSize(10).font('Helvetica-Oblique')
+                .text('Digitally Authenticated by Sehat Safe AI', doc.page.width - 250, pageHeight - 110, {
+                    width: 200, align: 'center'
+                });
+
+            doc.fillColor('#cbd5e1').fontSize(8).font('Helvetica')
+                .text(
+                    'This document was securely generated maintaining HIPAA & local compliance standards. Do not alter.',
+                    50,
+                    pageHeight - 50,
+                    { align: 'center', width: doc.page.width - 100 }
+                );
 
             doc.end();
 

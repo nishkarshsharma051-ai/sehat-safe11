@@ -1,18 +1,20 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
     name: string;
     email: string;
-    password?: string; // Optional because google auth might not have password
+    password?: string;
     role: 'patient' | 'doctor' | 'admin';
     age?: number;
     gender?: string;
     contactNumber?: string;
-    firebaseUid?: string; // Optional Firebase UID for Google sign-in
+    firebaseUid?: string;
     pinCode?: string;
     annualIncome?: number;
     createdAt: Date;
     updatedAt: Date;
+    comparePassword: (password: string) => Promise<boolean>;
 }
 
 const UserSchema: Schema = new Schema({
@@ -33,5 +35,21 @@ const UserSchema: Schema = new Schema({
 }, {
     timestamps: true
 });
+
+// Hash password before saving
+UserSchema.pre('save', async function (this: IUser) {
+    if (!this.isModified('password') || !this.password) return;
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.password = await bcrypt.hash(this.password, salt);
+    } catch (err: any) {
+        throw err;
+    }
+});
+
+UserSchema.methods.comparePassword = async function (this: IUser, password: string) {
+    if (!this.password) return false;
+    return bcrypt.compare(password, this.password);
+};
 
 export default mongoose.model<IUser>('User', UserSchema);

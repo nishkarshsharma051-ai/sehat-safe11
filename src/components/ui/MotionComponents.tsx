@@ -69,9 +69,16 @@ export const StaggerContainer: React.FC<StaggerContainerProps> = ({ children, cl
     );
 };
 
-// 4. Motion Item: Direct child of StaggerContainer
 export const MotionItem: React.FC<HTMLMotionProps<"div">> = ({ children, className, ...props }) => (
     <motion.div variants={itemFadeUp} className={className} {...props}>
         {children}
     </motion.div>
 );
+
+export const MotionComponents = {
+    div: motion.div,
+    button: motion.button,
+    section: motion.section,
+    nav: motion.nav,
+};
+

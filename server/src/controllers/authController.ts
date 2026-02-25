@@ -13,33 +13,21 @@ export const register = async (req: Request, res: Response) => {
     try {
         const { email, password, name, role, firebaseUid } = req.body;
 
-        // Check if user exists
         let user = await User.findOne({ email });
 
         if (user) {
-            // If user exists but role is different, reject? 
-            // Or if existing user is trying to "register" again, return existing.
-            // But if they are changing roles, we should block it or return existing role.
-            if (user.role && role && user.role !== role) {
-                return res.json({
-                    user: { id: user._id, name: user.name, email: user.email, role: user.role },
-                    message: "User exists with a different role. Using existing role.",
-                    roleMismatch: true
-                });
-            }
-            return res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+            return res.json({
+                user: { id: user._id, name: user.name, email: user.email, role: user.role },
+                message: "User exists."
+            });
         }
-
-        // Create new user with ROLE locked logic
-        // If password provided (local auth), hash it. If firebaseUid (social), store it.
-        const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
         user = new User({
             email,
-            password: hashedPassword,
+            password, // Model pre-save hook will hash this
             name,
-            role: role || 'patient', // Default to patient if not provided, but frontend should provide it
-            firebaseUid // Optional, to link with firebase
+            role: role || 'patient',
+            firebaseUid
         });
 
         await user.save();
@@ -55,9 +43,8 @@ export const register = async (req: Request, res: Response) => {
         });
 
     } catch (error) {
-        const err = error as Error;
-        console.error('Registration error:', err.message, err.stack);
-        res.status(500).json({ error: 'Internal server error', detail: err.message });
+        console.error('Registration error:', (error as Error).message);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
 
@@ -72,13 +59,11 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Guard: if account was created via Google (no password stored), block password login
         if (!user.password) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Use bcrypt to compare the provided password with the hashed password in DB
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await (user as any).comparePassword(password);
 
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -105,12 +90,17 @@ export const login = async (req: Request, res: Response) => {
 
 export const verifyUser = async (req: Request, res: Response) => {
     try {
-        const { email } = req.body;
+        const { email, firebaseUid } = req.body;
 
         const user = await User.findOne({ email });
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        // verifyUID if provided to prevent unauthorized token generation
+        if (firebaseUid && user.firebaseUid && firebaseUid !== user.firebaseUid) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
         const userResponse = {

@@ -7,7 +7,9 @@ export interface IDoctor extends Document {
     hospitalName: string;
     experience: number;
     rating: number;
-    availability: string; // Could be more complex object in future
+    availability: string;
+    weeklyHoursLimit: number; // Added for burnout tracking
+    currentWorkloadAcuity: number; // 1-5 scale
     createdAt: Date;
     updatedAt: Date;
 }
@@ -19,7 +21,9 @@ const DoctorSchema: Schema = new Schema({
     hospitalName: { type: String, required: true },
     experience: { type: Number, required: true },
     rating: { type: Number, default: 0 },
-    availability: { type: String, required: true }
+    availability: { type: String, required: true },
+    weeklyHoursLimit: { type: Number, default: 40 },
+    currentWorkloadAcuity: { type: Number, default: 1, min: 1, max: 5 }
 }, {
     timestamps: true
 });

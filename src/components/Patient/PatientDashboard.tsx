@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LucideIcon } from 'lucide-react';
 import {
   FileText, Calendar, Bell, MessageSquare, LogOut, Sun, Moon,
-  Activity, Heart, Shield, MapPin, TrendingUp, Clock, Users, Link, LayoutDashboard, Settings, Menu, X, ChevronRight, Target, Sparkles
+  Activity, Heart, Shield, MapPin, TrendingUp, Clock, Users, Link, LayoutDashboard, Settings, Menu, X, ChevronRight, Target, Sparkles, Share2
 } from 'lucide-react';
 import { StaggerContainer, MotionItem } from '../ui/MotionComponents';
 import { GlassCard } from '../ui/GlassCard';
@@ -22,11 +22,12 @@ import HealthRiskScore from './HealthRiskScore';
 import SecureShare from './SecureShare';
 import NearbyHospitals from './NearbyHospitals';
 import InsuranceTracker from './InsuranceTracker';
-import HealthTimeline from './HealthTimeline';
+import UnifiedTimeline from './UnifiedTimeline';
 import HealthTrends from './HealthTrends';
 import FamilyManagement from './FamilyManagement';
 import SchemeMatcher from './SchemeMatcher';
 import HealthPlans from './HealthPlans';
+import SymptomTracker from './SymptomTracker';
 import { prescriptionService, appointmentService, reminderService, healthEntryService, insuranceService, familyService, healthProfileService } from '../../services/dataService';
 import { calculateHealthScore } from '../../utils/healthScoreUtils';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -35,7 +36,7 @@ import MedicalRecordUploadModal from './MedicalRecordUploadModal';
 type ViewType =
   | 'overview' | 'prescriptions' | 'appointments' | 'reminders' | 'chat'
   | 'health-summary' | 'risk-score' | 'secure-share' | 'hospitals'
-  | 'insurance' | 'timeline' | 'trends' | 'family' | 'settings' | 'schemes' | 'health-plans';
+  | 'insurance' | 'timeline' | 'trends' | 'family' | 'settings' | 'schemes' | 'health-plans' | 'symptoms';
 
 const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: string; badge?: string; badgeLabel?: string }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -45,6 +46,7 @@ const NAV_ITEMS: { id: ViewType; label: string; icon: LucideIcon; section?: stri
   { id: 'reminders', label: 'Reminders', icon: Bell, section: 'Core' },
   { id: 'timeline', label: 'Health Records', icon: Clock, section: 'Core' },
   { id: 'health-summary', label: 'Health Summary', icon: Heart, section: 'Core' },
+  { id: 'symptoms', label: 'Symptom Tracker', icon: Activity, section: 'Core' },
   // AI-Powered
   { id: 'chat', label: 'AI Chat', icon: MessageSquare, section: 'AI-Powered', badge: 'info', badgeLabel: 'New' },
   { id: 'health-plans', label: 'Health Plans', icon: Target, section: 'AI-Powered', badge: 'success', badgeLabel: 'AI' },
@@ -67,31 +69,41 @@ export default function PatientDashboard() {
   const [activeView, setActiveView] = useState<ViewType>('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [stats, setStats] = useState({ prescriptions: 0, appointments: 0, reminders: 0, timeline: 0, insurance: 0, family: 0 });
-  const [healthScore, setHealthScore] = useState(92);
+  const [healthScore, setHealthScore] = useState(0);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
 
   const loadStats = useCallback(async () => {
+    setIsLoadingStats(true);
     const uid = user?.uid || 'anonymous';
-    const [prescriptions, appointments, reminders, timeline, insurance, family] = await Promise.all([
-      prescriptionService.getAll(uid),
-      appointmentService.getByPatient(uid),
-      reminderService.getAll(uid),
-      healthEntryService.getAll(uid),
-      insuranceService.getAll(uid),
-      familyService.getAll(uid),
-    ]);
-    setStats({
-      prescriptions: prescriptions.length,
-      appointments: appointments.filter((a: { status: string }) => a.status !== 'cancelled').length,
-      reminders: reminders.filter((r: { is_active: boolean }) => r.is_active).length,
-      timeline: timeline.length,
-      insurance: insurance.length,
-      family: family.length,
-    });
+    try {
+      const [prescriptions, appointments, reminders, timeline, insurance, family] = await Promise.all([
+        prescriptionService.getAll(uid),
+        appointmentService.getByPatient(uid),
+        reminderService.getAll(uid),
+        healthEntryService.getAll(uid),
+        insuranceService.getAll(uid),
+        familyService.getAll(uid),
+      ]);
+      setStats({
+        prescriptions: prescriptions.length,
+        appointments: appointments.filter((a: { status: string }) => a.status !== 'cancelled').length,
+        reminders: reminders.filter((r: { is_active: boolean }) => r.is_active).length,
+        timeline: timeline.length,
+        insurance: insurance.length,
+        family: family.length,
+      });
 
-    const profile = await healthProfileService.get(uid);
-    if (profile) {
-      setHealthScore(calculateHealthScore(profile));
+      const profile = await healthProfileService.get(uid);
+      if (profile) {
+        setHealthScore(calculateHealthScore(profile));
+      } else {
+        setHealthScore(85); // Default fallback
+      }
+    } catch (e) {
+      console.error("Failed to load stats", e);
+    } finally {
+      setIsLoadingStats(false);
     }
   }, [user]);
 
@@ -139,7 +151,7 @@ export default function PatientDashboard() {
               case 'insurance':
                 return <InsuranceTracker />;
               case 'timeline':
-                return <HealthTimeline />;
+                return <UnifiedTimeline />;
               case 'trends':
                 return <HealthTrends />;
               case 'family':
@@ -148,6 +160,8 @@ export default function PatientDashboard() {
                 return <SchemeMatcher />;
               case 'health-plans':
                 return <HealthPlans />;
+              case 'symptoms':
+                return <SymptomTracker />;
               case 'settings':
                 return <SettingsView />;
               default:
@@ -328,27 +342,34 @@ export default function PatientDashboard() {
         {/* Large Primary Card */}
         <MotionItem className="col-span-2 row-span-2">
           <div
-            onClick={() => setActiveView('health-summary')}
-            className="h-full cursor-pointer relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-500 to-violet-600 text-white p-6 shadow-xl shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 group"
+            onClick={() => !isLoadingStats && setActiveView('health-summary')}
+            className={`h-full cursor-pointer relative overflow-hidden rounded-[2rem] p-6 shadow-xl transition-all duration-300 group ${isLoadingStats
+              ? 'bg-gray-200 dark:bg-slate-800 animate-pulse cursor-wait'
+              : 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98]'
+              }`}
           >
-            <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+            {!isLoadingStats && (
+              <>
+                <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col h-full justify-between">
-              <div>
-                <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
-                  <Heart className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold mb-1">{t('Health Score', 'स्वास्थ्य स्कोर')}</h3>
-                <p className="text-indigo-100">{t('Overall Wellness', 'समग्र विकास')}</p>
-              </div>
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                  <div>
+                    <div className="bg-white/20 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
+                      <Heart className="w-6 h-6 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-1">{t('Health Score', 'स्वास्थ्य स्कोर')}</h3>
+                    <p className="text-indigo-100">{t('Overall Wellness', 'समग्र विकास')}</p>
+                  </div>
 
-              <div className="flex items-end justify-between">
-                <span className="text-6xl font-bold tracking-tighter">{healthScore}</span>
-                <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium backdrop-blur-md">
-                  {t('+2% this week', 'इस सप्ताह +2%')}
+                  <div className="flex items-end justify-between">
+                    <span className="text-6xl font-bold tracking-tighter">{healthScore}</span>
+                    <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-medium backdrop-blur-md">
+                      {t('+2% this week', 'इस सप्ताह +2%')}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </MotionItem>
 
@@ -359,23 +380,36 @@ export default function PatientDashboard() {
           { label: 'Timeline', value: stats.timeline, color: 'text-purple-500', bg: 'bg-purple-500/10', icon: Clock, view: 'timeline' as ViewType },
         ].map((stat) => (
           <MotionItem key={stat.label} className="col-span-1">
-            <GlassCard onClick={() => setActiveView(stat.view)}
-              className="p-5 h-40 flex flex-col justify-between cursor-pointer hover:bg-white/80 dark:hover:bg-slate-800/80 transition-colors group relative overflow-hidden">
-              <div className="flex justify-between items-start">
-                <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
+            <GlassCard onClick={() => !isLoadingStats && setActiveView(stat.view)}
+              className={`p-5 h-40 flex flex-col justify-between cursor-pointer transition-colors group relative overflow-hidden ${isLoadingStats ? 'animate-pulse bg-gray-100/50 dark:bg-white/5' : 'hover:bg-white/80 dark:hover:bg-slate-800/80'
+                }`}>
+              {!isLoadingStats ? (
+                <>
+                  <div className="flex justify-between items-start">
+                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
+                      <stat.icon className="w-5 h-5" />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 dark:group-hover:text-gray-400 transition-colors" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
+                    <p className="text-sm text-gray-500 font-medium">{t(stat.label,
+                      stat.label === 'Prescriptions' ? 'नुस्खे' :
+                        stat.label === 'Appointments' ? 'अपॉइंटमेंट' :
+                          stat.label === 'Reminders' ? 'रिमाइंडर' :
+                            stat.label === 'Timeline' ? 'टाइमलाइन' : stat.label
+                    )}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-slate-700"></div>
+                  <div className="space-y-2">
+                    <div className="h-6 w-12 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
+                    <div className="h-4 w-20 bg-gray-200 dark:bg-slate-700 rounded-md"></div>
+                  </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 dark:group-hover:text-gray-400 transition-colors" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{stat.value}</p>
-                <p className="text-sm text-gray-500 font-medium">{t(stat.label,
-                  stat.label === 'Prescriptions' ? 'नुस्खे' :
-                    stat.label === 'Appointments' ? 'अपॉइंटमेंट' :
-                      stat.label === 'Reminders' ? 'रिमाइंडर' :
-                        stat.label === 'Timeline' ? 'टाइमलाइन' : stat.label
-                )}</p>
-              </div>
+              )}
             </GlassCard>
           </MotionItem>
         ))}
@@ -392,6 +426,18 @@ export default function PatientDashboard() {
               { label: 'AI Chat', hindiLabel: 'एआई चैट', icon: MessageSquare, color: 'bg-indigo-500', view: 'chat' as ViewType },
               { label: 'Risk Score', hindiLabel: 'जोखिम स्कोर', icon: Activity, color: 'bg-rose-500', view: 'risk-score' as ViewType },
               { label: 'Hospitals', hindiLabel: 'अस्पताल', icon: MapPin, color: 'bg-red-500', view: 'hospitals' as ViewType },
+              {
+                label: 'Emergency ID',
+                hindiLabel: 'आपातकालीन आईडी',
+                icon: Share2,
+                color: 'bg-orange-600',
+                action: () => {
+                  const url = `${window.location.origin}/emergency/${user?.uid}`;
+                  navigator.clipboard.writeText(url);
+                  alert(t('Emergency Profile Link copied to clipboard!', 'आपातकालीन प्रोफ़ाइल लिंक क्लिपबोर्ड पर कॉपी किया गया!'));
+                  window.open(url, '_blank');
+                }
+              },
             ].map((action) => (
               <MotionItem key={action.label}>
                 <button

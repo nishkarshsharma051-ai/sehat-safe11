@@ -36,6 +36,9 @@ import hospitalRoutes from './routes/hospital.routes';
 import reminderRoutes from './routes/reminder.routes';
 import healthRoutes from './routes/health.routes';
 import patientDataRoutes from './routes/patientData.routes';
+import workloadRoutes from './routes/workload.routes';
+import schedulingRoutes from './routes/scheduling.routes';
+import affiliateRoutes from './routes/affiliate.routes';
 
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api', chatRoutes);
@@ -46,6 +49,9 @@ app.use('/api/hospitals', hospitalRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/health-data', healthRoutes);
 app.use('/api/patient-data', patientDataRoutes);
+app.use('/api/workload', workloadRoutes);
+app.use('/api/scheduling', schedulingRoutes);
+app.use('/api/affiliates', affiliateRoutes);
 
 import patientRoutes from './routes/patient.routes';
 import adminRoutes from './routes/admin.routes';

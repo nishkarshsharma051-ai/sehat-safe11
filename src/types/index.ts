@@ -13,6 +13,10 @@ export interface UserProfile {
   created_at?: string;
 }
 
+export interface Patient extends UserProfile {
+  name: string;
+}
+
 export interface Prescription {
   id: string;
   patient_id: string;
@@ -125,6 +129,18 @@ export interface HealthProfile {
   allergies: string[];
   chronic_conditions: string[];
   emergency_contacts: EmergencyContact[];
+}
+
+export interface SymptomLog {
+  _id: string;
+  patientId: string;
+  date: string;
+  symptoms: Array<{
+    name: string;
+    severity: number;
+    notes?: string;
+  }>;
+  createdAt: string;
 }
 
 export interface EmergencyContact {
@@ -240,4 +256,16 @@ export interface PlanActivity {
   description: string;
   frequency: string;
   type: 'exercise' | 'diet' | 'checkup' | 'meditation' | 'wellness';
+}
+
+export interface TimelineEvent {
+  id: string;
+  patient_id: string;
+  date: string;
+  title: string;
+  description: string;
+  source: 'text' | 'photo' | 'wearable' | 'emr' | 'auto';
+  category: 'symptom' | 'vitals' | 'activity' | 'medication' | 'diagnosis';
+  ai_insight?: string;
+  raw_data?: any;
 }

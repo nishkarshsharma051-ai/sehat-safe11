@@ -3,10 +3,7 @@ import { connectDB } from '../config/db';
 import User from '../models/User';
 import mongoose from 'mongoose';
 
-
 dotenv.config();
-
-import bcrypt from 'bcryptjs';
 
 const seedAdmin = async () => {
     try {
@@ -14,9 +11,6 @@ const seedAdmin = async () => {
 
         const adminEmail = 'admin@sehatsafe.com';
         const plainPassword = 'admin';
-        const salt = await bcrypt.genSalt(10);
-        const startHash = await bcrypt.hash(plainPassword, salt);
-        const adminPassword = startHash;
 
         const existingAdmin = await User.findOne({ email: adminEmail });
 
@@ -26,7 +20,7 @@ const seedAdmin = async () => {
             await User.create({
                 name: 'Admin User',
                 email: adminEmail,
-                password: adminPassword,
+                password: plainPassword, // Model hashes this
                 role: 'admin',
                 age: 30,
                 gender: 'Other',
@@ -34,7 +28,6 @@ const seedAdmin = async () => {
             });
             console.log('Admin user created successfully');
             console.log(`Email: ${adminEmail}`);
-            console.log(`Password: ${adminPassword}`);
         }
 
         await mongoose.disconnect();

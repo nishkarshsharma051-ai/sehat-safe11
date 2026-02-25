@@ -5,6 +5,7 @@ import { HealthEntry } from '../../types';
 import { healthEntryService } from '../../services/dataService';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { getGeminiResponse } from '../../services/geminiService';
 
 const METRICS: (t: (en: string, hi: string) => string) => any[] = (t) => [
     { key: 'sugar', label: t('Blood Sugar', 'ब्लड शुगर'), unit: 'mg/dL', color: '#f59e0b', icon: Droplet, normal: '80–130' },
@@ -21,6 +22,8 @@ export default function HealthTrends() {
     const [showForm, setShowForm] = useState(false);
     const [activeMetric, setActiveMetric] = useState('sugar');
     const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], sugar: '', bp_systolic: '', bp_diastolic: '', weight: '' });
+    const [aiInsight, setAiInsight] = useState<string | null>(null);
+    const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
 
     const loadEntries = useCallback(async () => {
         setEntries(await healthEntryService.getByType(user?.uid || 'anonymous', 'vitals'));
@@ -67,10 +70,38 @@ export default function HealthTrends() {
         ? latestValue > prevValue ? 'up' : latestValue < prevValue ? 'down' : 'stable'
         : null;
 
+    useEffect(() => {
+        const generateInsight = async () => {
+            if (chartData.length < 2) {
+                setAiInsight(null);
+                return;
+            }
+            setIsGeneratingInsight(true);
+            try {
+                const prompt = `Analyze this health trend data for ${currentMetric.label} (Normal range: ${currentMetric.normal}). 
+                Recent values: ${chartData.map(d => `${d.date}: ${d.value}`).join(', ')}. 
+                Provide a very brief (2-3 sentences max) clinical insight on the trend and a simple recommendation. Do not use markdown headers.`;
+                const insight = await getGeminiResponse(prompt);
+                setAiInsight(insight);
+            } catch (error) {
+                console.error('Error generating AI insight:', error);
+                setAiInsight(null);
+            } finally {
+                setIsGeneratingInsight(false);
+            }
+        };
+
+        generateInsight();
+    }, [activeMetric, entries, currentMetric.label, currentMetric.normal]);
+
+    const handlePrintSupport = () => {
+        window.print();
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="glass-card p-6">
-                <div className="flex items-center justify-between mb-6">
+        <div className="space-y-6 print:m-0 print:p-0">
+            <div className="glass-card p-6 print:shadow-none print:border-none print:bg-white">
+                <div className="flex items-center justify-between mb-6 print:mb-2">
                     <div className="flex items-center space-x-3">
                         <div className="bg-indigo-100 p-2 rounded-xl"><TrendingUp className="w-6 h-6 text-indigo-600" /></div>
                         <div>
@@ -78,10 +109,16 @@ export default function HealthTrends() {
                             <p className="text-sm text-gray-500">{t('Track your vitals over time', 'समय के साथ अपने मुख्य संकेतों को ट्रैक करें')}</p>
                         </div>
                     </div>
-                    <button onClick={() => setShowForm(!showForm)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all text-sm">
-                        <Plus className="w-4 h-4" /><span>{t('Add Reading', 'रीडिंग जोड़ें')}</span>
-                    </button>
+                    <div className="flex items-center gap-3 print:hidden">
+                        <button onClick={handlePrintSupport}
+                            className="flex items-center space-x-2 px-4 py-2 bg-white/50 text-indigo-600 rounded-lg shadow border border-indigo-100 hover:bg-white text-sm transition-all font-medium">
+                            <Droplet className="w-4 h-4 hidden" />  <span>Export PDF</span>
+                        </button>
+                        <button onClick={() => setShowForm(!showForm)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium">
+                            <Plus className="w-4 h-4" /><span>{t('Add Reading', 'रीडिंग जोड़ें')}</span>
+                        </button>
+                    </div>
                 </div>
 
                 {showForm && (
@@ -151,7 +188,7 @@ export default function HealthTrends() {
 
                 {/* Latest reading summary */}
                 {latestValue !== null && (
-                    <div className="mt-4 p-3 bg-blue-50/50 rounded-xl flex items-center justify-between">
+                    <div className="mt-4 p-3 bg-blue-50/50 rounded-xl flex items-center justify-between print:break-inside-avoid">
                         <div>
                             <p className="text-sm text-gray-600">
                                 {t('Latest', 'नवीनतम')} <strong>{currentMetric.label}</strong>: <span className="text-lg font-bold" style={{ color: currentMetric.color }}>{latestValue}</span> {currentMetric.unit}
@@ -162,6 +199,27 @@ export default function HealthTrends() {
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${trend === 'up' ? 'bg-red-100 text-red-600' : trend === 'down' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
                                 {trend === 'up' ? t('↑ Increasing', '↑ बढ़ रहा है') : trend === 'down' ? t('↓ Decreasing', '↓ घट रहा है') : t('→ Stable', '→ स्थिर')}
                             </span>
+                        )}
+                    </div>
+                )}
+
+                {/* AI Insight Section */}
+                {chartData.length >= 2 && (
+                    <div className="mt-6 p-5 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100/50 print:border-gray-300 print:break-inside-avoid">
+                        <h4 className="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                            <span className="text-xl">✨</span> AI Trend Analysis
+                        </h4>
+                        {isGeneratingInsight ? (
+                            <div className="animate-pulse flex space-x-4">
+                                <div className="flex-1 space-y-2 py-1">
+                                    <div className="h-3 bg-indigo-200/50 rounded w-3/4"></div>
+                                    <div className="h-3 bg-indigo-200/50 rounded"></div>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-indigo-800/80 leading-relaxed font-medium">
+                                {aiInsight || "Sufficient data recorded to monitor trends. Continue logging daily for deeper insights."}
+                            </p>
                         )}
                     </div>
                 )}

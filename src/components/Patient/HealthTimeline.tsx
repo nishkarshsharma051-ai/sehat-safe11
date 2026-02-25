@@ -22,7 +22,6 @@ interface HealthTimelineProps {
 export default function HealthTimeline({ patientId, onEntryAdded }: HealthTimelineProps) {
     const { user } = useAuth();
     const targetPatientId = patientId || user?.uid || 'anonymous';
-    const isDoctorView = !!patientId && patientId !== user?.uid;
 
     const { t, lang } = useLanguage();
     const typeConfig = TYPE_CONFIG(t);
@@ -243,7 +242,7 @@ export default function HealthTimeline({ patientId, onEntryAdded }: HealthTimeli
             <MedicalRecordUploadModal
                 isOpen={isUploadModalOpen}
                 onClose={() => setIsUploadModalOpen(false)}
-                patientId={user?.uid || ''}
+                patientId={targetPatientId}
                 onUploadComplete={load}
             />
         </div>
