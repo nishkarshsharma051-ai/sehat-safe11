@@ -143,7 +143,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      <div className="h-[100dvh] relative overflow-hidden">
+      <div className="min-h-[100dvh] relative">
         <AnimatePresence mode="wait">
           {!showSplash && (
             <PageTransition key={effectiveRole || 'guest'} className="h-[100dvh]">

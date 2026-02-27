@@ -446,7 +446,7 @@ export default function DoctorDashboard() {
 
 
   return (
-    <div className="flex h-[100dvh] bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
+    <div className="flex min-h-[100dvh] bg-transparent overflow-x-hidden font-sans">
       <aside className={`
         fixed inset-y-0 left-0 z-50 w-72 bg-gray-100/80 dark:bg-[#1C1C1E]/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-white/10
         transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-in-out
@@ -492,7 +492,7 @@ export default function DoctorDashboard() {
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-72 h-[100dvh] overflow-y-auto p-4 md:p-8">
+      <main className="flex-1 md:ml-72 min-h-[100dvh] p-4 md:p-8">
         <div className="max-w-6xl mx-auto pt-12 md:pt-0">
           {renderContent()}
         </div>

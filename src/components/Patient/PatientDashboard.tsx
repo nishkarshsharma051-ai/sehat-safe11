@@ -471,7 +471,7 @@ export default function PatientDashboard() {
   let lastSection = '';
 
   return (
-    <div className="flex h-[100dvh] bg-[#F2F2F7] dark:bg-black overflow-hidden font-sans">
+    <div className="flex min-h-[100dvh] bg-transparent overflow-x-hidden font-sans">
 
       {/* Mobile Menu Toggle */}
       <div className="md:hidden fixed top-0 left-0 right-0 p-4 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200/50 dark:border-white/10 flex items-center justify-between">
@@ -605,7 +605,7 @@ export default function PatientDashboard() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-72 h-[100dvh] overflow-y-auto pt-20 md:pt-6 px-4 md:px-8 pb-8 scroll-smooth">
+      <main className="flex-1 md:ml-72 min-h-[100dvh] pt-20 md:pt-6 px-4 md:px-8 pb-8 scroll-smooth">
         <div className="max-w-6xl mx-auto">
           {renderView()}
         </div>
